@@ -65,36 +65,41 @@ text-transform: uppercase;
 color: var(–accent);
 font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 }
-.rules-toggle {
-display: flex; align-items: center; gap: 8px;
-font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-color: var(–text-dim);
-cursor: pointer;
-user-select: none;
+.header-controls {
+display: flex;
+align-items: center;
+gap: 6px;
 }
-.rules-toggle .label-text { font-weight: 600; }
-.rules-toggle.loose .label-text { color: var(–warn); }
-.toggle-switch {
-width: 38px; height: 22px;
-background: var(–accent-dim);
-border: 1px solid var(–accent);
-border-radius: 12px;
-position: relative;
-transition: background 0.15s, border-color 0.15s;
-flex-shrink: 0;
-}
-.rules-toggle.loose .toggle-switch {
+.hdr-btn {
+width: 36px; height: 36px;
 background: var(–panel-2);
-border-color: var(–warn);
+border: 1.5px solid var(–border-bright);
+border-radius: 8px;
+color: var(–text);
+font-family: inherit;
+cursor: pointer;
+display: flex; align-items: center; justify-content: center;
+padding: 0;
+transition: background 0.1s, border-color 0.15s, color 0.15s;
 }
-.toggle-switch::after {
-content: ‘’; position: absolute;
-top: 2px; left: 18px;
-width: 16px; height: 16px;
-background: var(–text); border-radius: 50%;
-transition: left 0.15s;
+.hdr-btn:active { background: var(–border); }
+.hdr-icon {
+font-size: 16px;
+font-weight: 700;
+line-height: 1;
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 }
-.rules-toggle.loose .toggle-switch::after { left: 2px; }
+/* Rules toggle: cyan when Strict, amber when Loose */
+.rules-btn { border-color: var(–accent); color: var(–accent); }
+.rules-btn.loose { border-color: var(–warn); color: var(–warn); }
+/* Quick view: filled when active */
+.quick-btn.active {
+background: var(–accent-dim);
+border-color: var(–accent);
+color: var(–bg);
+}
+/* Undo: bright when visible (only shown when there’s something to undo) */
+.undo-btn { border-color: var(–warn); color: var(–warn); }
 
 /* TABS */
 .tabs {
@@ -117,13 +122,52 @@ font-family: inherit;
 }
 .tab.active { color: var(–accent); border-bottom-color: var(–accent); }
 
-main { padding: 16px 12px 16px; max-width: 700px; margin: 0 auto; }
+main { padding: 12px 10px 16px; max-width: 700px; margin: 0 auto; }
+
+/* COUNTERS STRIP */
+.counters {
+display: grid;
+grid-template-columns: repeat(5, 1fr);
+gap: 4px;
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 7px 4px;
+margin-bottom: 12px;
+}
+.counter {
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+padding: 2px;
+gap: 2px;
+}
+.counter-label {
+font-size: 9px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+color: var(–text-dim);
+line-height: 1;
+}
+.counter-value {
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-size: 15px;
+font-weight: 700;
+color: var(–text);
+line-height: 1.1;
+}
+.counter.fd .counter-value { color: var(–fd); }
+.counter.pax .counter-value { color: var(–pax); }
+.counter.complete .counter-value { color: var(–complete); }
+.counter.tool .counter-value { color: var(–warn); }
 
 /* GROUPS */
-.group { margin-bottom: 20px; }
+.group { margin-bottom: 14px; }
 .group-header {
 display: flex; align-items: baseline; justify-content: space-between;
-padding: 0 4px 10px;
+padding: 0 4px 6px;
 }
 .group-title {
 font-size: 11px; font-weight: 700;
@@ -138,15 +182,15 @@ font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 .spots {
 display: grid;
 grid-template-columns: repeat(2, 1fr);
-gap: 8px;
+gap: 6px;
 }
 .spots.solo { grid-template-columns: 1fr; }
 .spot {
 background: var(–panel);
 border: 1px solid var(–border);
-border-radius: 10px;
-padding: 12px;
-min-height: 78px;
+border-radius: 9px;
+padding: 8px 10px;
+min-height: 62px;
 display: flex; flex-direction: column;
 cursor: pointer;
 position: relative;
@@ -160,34 +204,54 @@ width: 100%;
 .spot:active { background: var(–panel-2); }
 .spot.empty {
 border-style: dashed;
+border-color: var(–border-bright);
+background: rgba(255, 255, 255, 0.015);
 align-items: center; justify-content: center;
-color: var(–text-faint);
+gap: 2px;
+padding: 6px 8px;
+min-height: 58px;
 }
-.spot.filled.fd { border-color: var(–fd); border-left-width: 4px; padding-left: 9px; }
-.spot.filled.pax { border-color: var(–pax); border-left-width: 4px; padding-left: 9px; }
-.spot.filled.complete { border-color: var(–complete); border-left-width: 4px; padding-left: 9px; }
+.spot.filled.fd { border-color: var(–fd); border-left-width: 4px; padding-left: 7px; }
+.spot.filled.pax { border-color: var(–pax); border-left-width: 4px; padding-left: 7px; }
+.spot.filled.complete { border-color: var(–complete); border-left-width: 4px; padding-left: 7px; }
+/* Background wash for Complete units based on Ready state */
+.spot.filled.complete.ready-bg {
+background: linear-gradient(180deg, rgba(74,222,128,0.10), rgba(74,222,128,0.04));
+}
+.spot.filled.complete.not-ready-bg {
+background: linear-gradient(180deg, rgba(255,181,71,0.10), rgba(255,181,71,0.04));
+}
 .spot-label {
-font-size: 10px;
+font-size: 9px;
 color: var(–text-faint);
 text-transform: uppercase; letter-spacing: 0.08em;
-margin-bottom: 4px;
+margin-bottom: 3px;
 }
-.spot.empty .spot-label { color: var(–text-faint); margin-bottom: 6px; }
+.spot.empty .spot-label {
+color: var(–text);
+font-weight: 700;
+font-size: 12px;
+margin-bottom: 2px;
+letter-spacing: 0.12em;
+}
 .spot-empty-plus {
-font-size: 24px; font-weight: 200;
-color: var(–text-faint);
+font-size: 12px; font-weight: 600;
+color: var(–accent);
 line-height: 1;
+text-transform: uppercase;
+letter-spacing: 0.1em;
+opacity: 0.9;
 }
 .spot-lu {
-font-size: 22px; font-weight: 700;
+font-size: 19px; font-weight: 700;
 font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 color: var(–text);
 letter-spacing: -0.02em;
-line-height: 1.1;
+line-height: 1.05;
 }
 .spot-meta {
-display: flex; gap: 4px; flex-wrap: wrap;
-margin-top: 6px;
+display: flex; gap: 3px; flex-wrap: wrap;
+margin-top: 4px;
 }
 .badge {
 font-size: 9px; font-weight: 700;
@@ -202,9 +266,78 @@ white-space: nowrap;
 .badge.type-pax { color: var(–pax); border-color: rgba(0,217,255,0.4); }
 .badge.type-complete { color: var(–complete); border-color: rgba(74,222,128,0.4); }
 .badge.tool { color: var(–warn); border-color: rgba(255,181,71,0.4); }
-.badge.bolted { color: var(–good); border-color: rgba(74,222,128,0.4); }
-.badge.unbolted { color: var(–danger); border-color: rgba(255,85,119,0.4); }
+.badge.ready {
+color: var(–good);
+border-color: rgba(74,222,128,0.5);
+background: rgba(74,222,128,0.12);
+}
+.badge.not-ready {
+color: var(–danger);
+border-color: rgba(255,85,119,0.5);
+background: rgba(255,85,119,0.12);
+}
 .badge.dest { color: var(–text); border-color: var(–border-bright); }
+
+/* FD Overflow: slightly dimmed/muted to distinguish from primary FD spots */
+.spot.overflow {
+opacity: 0.78;
+background: rgba(255,255,255,0.01);
+}
+.spot.empty.overflow .spot-label {
+color: var(–text-dim);
+}
+.spot.empty.overflow .spot-empty-plus {
+opacity: 0.55;
+}
+
+/* Destination/move row at bottom of filled spot */
+.dest-row {
+display: flex;
+gap: 4px;
+margin-top: 6px;
+}
+.dest-row.no-dest { margin-top: 6px; }
+.spot-action {
+background: var(–panel-2);
+border: 1px solid var(–border-bright);
+border-radius: 5px;
+color: var(–text);
+padding: 4px 7px;
+font-size: 10px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.04em;
+cursor: pointer;
+font-family: inherit;
+}
+.spot-action:active { background: var(–border); }
+.dest-move-btn {
+flex: 1;
+color: var(–accent);
+border-color: rgba(0,217,255,0.4);
+background: rgba(0,217,255,0.06);
+text-align: center;
+}
+.any-move-btn {
+width: 28px;
+padding: 4px 0;
+color: var(–text-dim);
+flex-shrink: 0;
+}
+.any-move-btn-wide {
+flex: 1;
+color: var(–text-dim);
+text-align: center;
+}
+
+/* Quick view mode: hide everything except label + LU */
+.spot.filled.quick {
+min-height: 56px;
+padding: 8px 10px;
+}
+.spot.filled.quick .spot-lu {
+font-size: 22px;
+}
 
 /* LOAD ORDER */
 .load-section { padding: 0 4px; }
@@ -226,14 +359,14 @@ margin-bottom: 16px;
 background: var(–panel);
 border: 1px solid var(–border);
 border-radius: 10px;
-padding: 10px 10px 10px 14px;
-display: flex; align-items: center; gap: 10px;
+padding: 8px 8px 8px 12px;
+display: flex; align-items: center; gap: 8px;
 }
 .load-num {
 font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 font-size: 11px; font-weight: 700;
 color: var(–accent);
-min-width: 22px;
+min-width: 18px;
 letter-spacing: 0.05em;
 }
 .load-body {
@@ -247,29 +380,45 @@ font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 font-size: 16px; font-weight: 700;
 color: var(–text);
 line-height: 1.1;
+overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .load-note {
-font-size: 11px;
+font-size: 10px;
 color: var(–text-dim);
+overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .load-controls {
-display: flex; align-items: center; gap: 4px;
+display: flex; align-items: center; gap: 3px;
+flex-shrink: 0;
+}
+.load-controls .icon-btn {
+width: 30px; height: 30px;
+font-size: 14px;
 }
 .icon-btn {
-width: 32px; height: 32px;
+width: 34px; height: 34px;
 background: var(–panel-2);
-border: 1px solid var(–border);
+border: 1.5px solid var(–border-bright);
 border-radius: 6px;
-color: var(–text-dim);
-font-size: 14px;
+color: var(–text);
+font-size: 16px;
+font-weight: 600;
 display: flex; align-items: center; justify-content: center;
 cursor: pointer;
 font-family: inherit;
 padding: 0;
 }
 .icon-btn:active { background: var(–border); }
-.icon-btn.danger { color: var(–danger); }
-.icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.icon-btn.danger {
+color: var(–danger);
+border-color: var(–danger);
+}
+.icon-btn.loaded-btn {
+color: var(–good);
+border-color: var(–good);
+background: rgba(74,222,128,0.08);
+}
+.icon-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
 .load-actions {
 display: grid;
@@ -278,36 +427,45 @@ gap: 8px;
 margin-bottom: 16px;
 }
 .btn {
-background: var(–panel);
-border: 1px solid var(–border-bright);
+background: var(–panel-2);
+border: 1.5px solid var(–border-bright);
 border-radius: 10px;
 color: var(–text);
-padding: 14px 10px;
-font-size: 12px;
-font-weight: 600;
+padding: 15px 10px;
+font-size: 13px;
+font-weight: 700;
 text-transform: uppercase;
-letter-spacing: 0.08em;
+letter-spacing: 0.1em;
 cursor: pointer;
 font-family: inherit;
 }
-.btn:active { background: var(–panel-2); }
+.btn:active { background: var(–border); }
 .btn.primary {
-background: var(–accent-dim);
+background: var(–accent);
 border-color: var(–accent);
 color: var(–bg);
-font-weight: 700;
+font-weight: 800;
 }
-.btn.primary:active { background: var(–accent); }
+.btn.primary:active { background: var(–accent-dim); border-color: var(–accent-dim); }
 .btn.danger {
-border-color: rgba(255,85,119,0.5);
+background: rgba(255,85,119,0.12);
+border-color: var(–danger);
 color: var(–danger);
 }
+.btn.danger:active { background: rgba(255,85,119,0.25); }
 .btn.ghost {
 background: transparent;
-border-color: var(–border);
-color: var(–text-dim);
+border-color: var(–border-bright);
+color: var(–text);
 }
+.btn.ghost:active { background: var(–panel-2); }
 .btn.full { width: 100%; }
+.btn.move-btn {
+border-color: var(–accent);
+color: var(–accent);
+margin-bottom: 8px;
+}
+.btn.move-btn:active { background: rgba(0,217,255,0.08); }
 
 /* MODAL */
 .modal-backdrop {
@@ -336,10 +494,11 @@ border-radius: 2px;
 margin: 8px auto 16px;
 }
 .modal-title {
-font-size: 11px;
+font-size: 12px;
 text-transform: uppercase;
 letter-spacing: 0.12em;
-color: var(–text-faint);
+color: var(–accent);
+font-weight: 700;
 margin-bottom: 4px;
 }
 .modal-heading {
@@ -351,15 +510,15 @@ margin-bottom: 20px;
 }
 .field { margin-bottom: 16px; }
 .field-label {
-font-size: 10px; font-weight: 700;
+font-size: 11px; font-weight: 700;
 text-transform: uppercase; letter-spacing: 0.1em;
-color: var(–text-dim);
-margin-bottom: 6px;
+color: var(–text);
+margin-bottom: 8px;
 }
 .input, .select {
 width: 100%;
 background: var(–bg);
-border: 1px solid var(–border-bright);
+border: 1.5px solid var(–border-bright);
 border-radius: 8px;
 color: var(–text);
 padding: 12px 14px;
@@ -368,12 +527,13 @@ font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 -webkit-appearance: none;
 appearance: none;
 }
+.input::placeholder { color: var(–text-faint); }
 .input:focus, .select:focus {
 outline: none;
 border-color: var(–accent);
 }
 .select {
-background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘12’ viewBox=‘0 0 12 12’%3E%3Cpath fill=’%238a98b0’ d=‘M6 8.5L1.5 4h9z’/%3E%3C/svg%3E”);
+background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘12’ viewBox=‘0 0 12 12’%3E%3Cpath fill=’%23e8eef7’ d=‘M6 8.5L1.5 4h9z’/%3E%3C/svg%3E”);
 background-repeat: no-repeat;
 background-position: right 14px center;
 padding-right: 36px;
@@ -381,19 +541,19 @@ padding-right: 36px;
 .segment {
 display: flex;
 background: var(–bg);
-border: 1px solid var(–border-bright);
+border: 1.5px solid var(–border-bright);
 border-radius: 8px;
 padding: 3px;
 gap: 3px;
 }
 .segment button {
 flex: 1;
-padding: 10px 6px;
+padding: 12px 6px;
 background: transparent;
 border: none;
-color: var(–text-dim);
-font-size: 12px;
-font-weight: 600;
+color: var(–text);
+font-size: 13px;
+font-weight: 700;
 text-transform: uppercase;
 letter-spacing: 0.06em;
 border-radius: 6px;
@@ -401,12 +561,17 @@ cursor: pointer;
 font-family: inherit;
 }
 .segment button.active {
-background: var(–panel-2);
-color: var(–text);
+background: var(–accent);
+color: var(–bg);
+font-weight: 800;
 }
-.segment.type button.active.fd { color: var(–fd); }
-.segment.type button.active.pax { color: var(–pax); }
-.segment.type button.active.complete { color: var(–complete); }
+.segment.type button.active.fd { background: var(–fd); color: var(–bg); }
+.segment.type button.active.pax { background: var(–pax); color: var(–bg); }
+.segment.type button.active.complete { background: var(–complete); color: var(–bg); }
+
+/* Ready/Not-ready segments use semantic colors */
+.segment.ready button.active.ready { background: var(–good); color: var(–bg); }
+.segment.ready button.active.not-ready { background: var(–danger); color: var(–bg); }
 
 .modal-actions {
 display: grid;
@@ -452,20 +617,83 @@ width: 100%;
 font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 font-weight: 700;
 font-size: 16px;
+color: var(–text);
 flex: 1;
 }
 .picker-where {
 font-size: 11px;
-color: var(–text-dim);
+color: var(–text);
+font-weight: 600;
 text-transform: uppercase;
 letter-spacing: 0.05em;
+opacity: 0.85;
 }
 
 .empty-state {
 text-align: center;
-color: var(–text-faint);
+color: var(–text);
 padding: 30px 20px;
-font-size: 13px;
+font-size: 14px;
+opacity: 0.7;
+}
+
+/* MOVE MODAL */
+.move-hint {
+font-size: 12px;
+color: var(–text);
+opacity: 0.75;
+margin-bottom: 16px;
+line-height: 1.4;
+}
+.move-group-title {
+font-size: 10px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.14em;
+color: var(–accent);
+margin: 12px 0 6px;
+}
+.move-spot-list {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 6px;
+margin-bottom: 8px;
+}
+.move-spot-btn {
+background: var(–bg);
+border: 1px solid var(–border-bright);
+border-radius: 8px;
+padding: 10px 12px;
+display: flex;
+flex-direction: column;
+align-items: flex-start;
+gap: 3px;
+cursor: pointer;
+font-family: inherit;
+color: inherit;
+text-align: left;
+}
+.move-spot-btn:active { background: var(–panel-2); }
+.move-spot-btn.occupied {
+border-color: var(–warn);
+background: rgba(255,181,71,0.05);
+}
+.move-spot-name {
+font-size: 12px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+color: var(–text);
+}
+.move-spot-status {
+font-size: 11px;
+color: var(–text);
+opacity: 0.75;
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+}
+.move-spot-btn.occupied .move-spot-status {
+color: var(–warn);
+opacity: 1;
 }
 </style>
 
@@ -474,10 +702,17 @@ font-size: 13px;
 
 <header>
   <h1>Floor Tracker</h1>
-  <button class="rules-toggle" id="rulesToggle">
-    <span class="label-text" id="rulesLabel">Strict</span>
-    <span class="toggle-switch"></span>
-  </button>
+  <div class="header-controls">
+    <button class="hdr-btn undo-btn" id="undoBtn" title="Undo last action" style="display:none">
+      <span class="hdr-icon">↶</span>
+    </button>
+    <button class="hdr-btn quick-btn" id="quickBtn" title="Quick view (LU + location only)">
+      <span class="hdr-icon" id="quickIcon">◐</span>
+    </button>
+    <button class="hdr-btn rules-btn" id="rulesToggle" title="Strict / Loose rules">
+      <span class="hdr-icon" id="rulesLabel">S</span>
+    </button>
+  </div>
 </header>
 
 <div class="tabs">
@@ -486,6 +721,7 @@ font-size: 13px;
 </div>
 
 <main>
+  <div class="counters" id="counters"></div>
   <div id="boardView"></div>
   <div id="loadView" style="display:none"></div>
 </main>
@@ -518,7 +754,7 @@ const LOCATIONS = [
   { id: 'pax_pogo_2', label: 'PAX Pogo 2', group: 'PAX Pogos', accepts: ['PAX', 'COMPLETE'] },
 ];
 
-const GROUP_ORDER = ['Safran Pogos', 'Max Move', 'Complete Storage', 'FD Spots', 'PAX Pogos'];
+const GROUP_ORDER = ['Safran Pogos', 'Max Move', 'FD Spots', 'PAX Pogos', 'Complete Storage'];
 const DESTINATIONS = ['None', 'Safran Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'Complete Storage', 'LOAD'];
 
 // ============================================
@@ -527,9 +763,10 @@ const DESTINATIONS = ['None', 'Safran Pogos', 'PAX Pogos', 'FD Spots', 'Max Move
 const STORAGE_KEY = 'floor_tracker_v1';
 
 let state = {
-  spots: {}, // { locationId: { lu, type, tool, bolted, destination } }
+  spots: {}, // { locationId: { lu, type, tool, toolReady, unitReady, destination } }
   loadOrder: [], // [ { id, lu, note } ]
   strict: true,
+  quickView: false,
   activeTab: 'board',
 };
 
@@ -539,6 +776,19 @@ function loadState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       state = { ...state, ...parsed };
+      // Migrate old field name: bolted -> toolReady
+      // (Old saves from earlier versions used `bolted` for 2ME-bolted-down status)
+      for (const locId in state.spots) {
+        const u = state.spots[locId];
+        if (u && 'bolted' in u && !('toolReady' in u)) {
+          u.toolReady = !!u.bolted;
+          delete u.bolted;
+        }
+        // Ensure unitReady exists on COMPLETE units (default false = Not Ready)
+        if (u && u.type === 'COMPLETE' && !('unitReady' in u)) {
+          u.unitReady = false;
+        }
+      }
     }
   } catch (e) {
     console.error('Load failed:', e);
@@ -551,6 +801,7 @@ function saveState() {
       spots: state.spots,
       loadOrder: state.loadOrder,
       strict: state.strict,
+      quickView: state.quickView,
     }));
   } catch (e) {
     console.error('Save failed:', e);
@@ -604,7 +855,26 @@ function escapeHtml(s) {
 // ============================================
 // RENDER: BOARD
 // ============================================
+function renderCounters() {
+  const root = document.getElementById('counters');
+  const units = getAllUnits();
+  const fdCount = units.filter(u => u.type === 'FD').length;
+  const paxCount = units.filter(u => u.type === 'PAX').length;
+  const completeCount = units.filter(u => u.type === 'COMPLETE').length;
+  // Tool counts: 1MEs and 2MEs currently deployed across the board
+  const oneMe = units.filter(u => u.tool === '1ME').length;
+  const twoMe = units.filter(u => u.tool === '2ME').length;
+  root.innerHTML = `
+    <div class="counter fd"><span class="counter-label">FD</span><span class="counter-value">${fdCount}</span></div>
+    <div class="counter pax"><span class="counter-label">PAX</span><span class="counter-value">${paxCount}</span></div>
+    <div class="counter complete"><span class="counter-label">Complete</span><span class="counter-value">${completeCount}</span></div>
+    <div class="counter tool"><span class="counter-label">1ME</span><span class="counter-value">${oneMe}</span></div>
+    <div class="counter tool"><span class="counter-label">2ME</span><span class="counter-value">${twoMe}</span></div>
+  `;
+}
+
 function renderBoard() {
+  renderCounters();
   const root = document.getElementById('boardView');
   const byGroup = {};
   for (const loc of LOCATIONS) {
@@ -631,40 +901,122 @@ function renderBoard() {
   root.innerHTML = html;
 
   root.querySelectorAll('.spot').forEach(el => {
-    el.addEventListener('click', () => openSpotModal(el.dataset.location));
+    el.addEventListener('click', e => {
+      // If a button inside the spot was tapped (e.g. dest-move), don't trigger spot edit
+      if (e.target.closest('.spot-action')) return;
+      openSpotModal(el.dataset.location);
+    });
+  });
+
+  // Wire up destination-move and any-move buttons on filled spots
+  root.querySelectorAll('.dest-move-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const locId = btn.dataset.location;
+      editLocationId = locId;
+      editDraft = { ...getSpot(locId) };
+      openMoveModal(btn.dataset.group);
+    });
+  });
+  root.querySelectorAll('.any-move-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const locId = btn.dataset.location;
+      editLocationId = locId;
+      editDraft = { ...getSpot(locId) };
+      openMoveModal();
+    });
   });
 }
 
 function renderSpot(loc) {
   const unit = getSpot(loc.id);
+  const isOverflow = loc.id.startsWith('fd_overflow_');
+  const overflowClass = isOverflow ? ' overflow' : '';
+
   if (!unit) {
     return `
-      <button class="spot empty" data-location="${loc.id}">
+      <button class="spot empty${overflowClass}" data-location="${loc.id}">
         <div class="spot-label">${escapeHtml(loc.label)}</div>
-        <div class="spot-empty-plus">+</div>
+        <div class="spot-empty-plus">+ Empty</div>
       </button>
     `;
   }
+
   const typeClass = unit.type.toLowerCase();
+
+  // Auto-complete spots: Max Move always, PAX Pogos when holding a Complete unit.
+  const isAutoComplete = loc.id === 'max_move' ||
+    (loc.group === 'PAX Pogos' && unit.type === 'COMPLETE');
+
+  // Background wash: Complete units, but skip auto-complete spots (status is implied)
+  let washClass = '';
+  if (unit.type === 'COMPLETE' && !isAutoComplete) {
+    washClass = unit.unitReady ? ' ready-bg' : ' not-ready-bg';
+  }
+
+  // QUICK VIEW: minimal card showing just LU + location, no badges
+  if (state.quickView) {
+    return `
+      <button class="spot filled ${typeClass}${washClass}${overflowClass} quick" data-location="${loc.id}">
+        <div class="spot-label">${escapeHtml(loc.label)}</div>
+        <div class="spot-lu">${escapeHtml(unit.lu)}</div>
+      </button>
+    `;
+  }
+
+  // FULL VIEW: normal badge layout
   const badges = [];
   badges.push(`<span class="badge type-${typeClass}">${unit.type}</span>`);
+
+  // Unit-level Ready / Not Ready badge (Complete units only, hidden on auto-complete spots)
+  if (unit.type === 'COMPLETE' && !isAutoComplete) {
+    badges.push(unit.unitReady
+      ? `<span class="badge ready">Ready</span>`
+      : `<span class="badge not-ready">Not Ready</span>`);
+  }
+
+  // Tool badge + tool readiness
   if (unit.tool && unit.tool !== 'none') {
     badges.push(`<span class="badge tool">${unit.tool}</span>`);
+    const showsToolReadiness = !isAutoComplete && (
+      (unit.type === 'PAX' && unit.tool === '1ME') ||
+      (unit.type === 'COMPLETE' && unit.tool === '2ME')
+    );
+    if (showsToolReadiness) {
+      badges.push(unit.toolReady
+        ? `<span class="badge ready">${unit.tool} Ready</span>`
+        : `<span class="badge not-ready">${unit.tool} Not Ready</span>`);
+    }
   }
-  if (unit.type === 'COMPLETE' && unit.tool === '2ME') {
-    badges.push(unit.bolted
-      ? `<span class="badge bolted">Bolted</span>`
-      : `<span class="badge unbolted">Not bolted</span>`);
-  }
+
+  // Destination + move buttons: shown if a destination is set
+  let destSection = '';
   if (unit.destination && unit.destination !== 'None') {
-    badges.push(`<span class="badge dest">→ ${escapeHtml(unit.destination)}</span>`);
+    destSection = `
+      <div class="dest-row">
+        <button class="spot-action dest-move-btn" data-location="${loc.id}" data-group="${escapeHtml(unit.destination)}">
+          → ${escapeHtml(unit.destination)}
+        </button>
+        <button class="spot-action any-move-btn" data-location="${loc.id}" title="Move anywhere">↗</button>
+      </div>
+    `;
+  } else {
+    // No destination: still offer a small "move" affordance
+    destSection = `
+      <div class="dest-row no-dest">
+        <button class="spot-action any-move-btn-wide" data-location="${loc.id}">Move ↗</button>
+      </div>
+    `;
   }
+
   return `
-    <button class="spot filled ${typeClass}" data-location="${loc.id}">
+    <div class="spot filled ${typeClass}${washClass}${overflowClass}" data-location="${loc.id}">
       <div class="spot-label">${escapeHtml(loc.label)}</div>
       <div class="spot-lu">${escapeHtml(unit.lu)}</div>
       <div class="spot-meta">${badges.join('')}</div>
-    </button>
+      ${destSection}
+    </div>
   `;
 }
 
@@ -689,6 +1041,7 @@ function renderLoad() {
             ${item.note ? `<span class="load-note">${escapeHtml(item.note)}</span>` : ''}
           </div>
           <div class="load-controls">
+            <button class="icon-btn loaded-btn" data-act="loaded" data-id="${item.id}" title="Mark as loaded">✓</button>
             <button class="icon-btn" data-act="up" data-id="${item.id}" ${i === 0 ? 'disabled' : ''}>↑</button>
             <button class="icon-btn" data-act="down" data-id="${item.id}" ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="icon-btn danger" data-act="remove" data-id="${item.id}">×</button>
@@ -715,11 +1068,19 @@ function renderLoad() {
       const act = b.dataset.act;
       const idx = state.loadOrder.findIndex(x => x.id === id);
       if (idx === -1) return;
+      const undoLabel =
+        act === 'loaded' ? `Mark LU ${state.loadOrder[idx].lu} loaded`
+        : act === 'remove' ? 'Remove from load'
+        : 'Reorder load';
+      pushUndo(undoLabel);
       if (act === 'up' && idx > 0) {
         [state.loadOrder[idx - 1], state.loadOrder[idx]] = [state.loadOrder[idx], state.loadOrder[idx - 1]];
       } else if (act === 'down' && idx < state.loadOrder.length - 1) {
         [state.loadOrder[idx + 1], state.loadOrder[idx]] = [state.loadOrder[idx], state.loadOrder[idx + 1]];
       } else if (act === 'remove') {
+        state.loadOrder.splice(idx, 1);
+      } else if (act === 'loaded') {
+        // Mark loaded = remove from list
         state.loadOrder.splice(idx, 1);
       }
       saveState();
@@ -731,6 +1092,7 @@ function renderLoad() {
   document.getElementById('addCustom')?.addEventListener('click', openCustomLoadModal);
   document.getElementById('clearLoad')?.addEventListener('click', () => {
     if (confirm('Clear the entire load order?')) {
+      pushUndo('Clear load order');
       state.loadOrder = [];
       saveState();
       renderLoad();
@@ -771,6 +1133,19 @@ function openSpotModal(locationId) {
 
   if (existing) {
     editDraft = { ...existing };
+    // Max Move always = Complete, Ready, 2ME bolted — normalize on open
+    if (locationId === 'max_move') {
+      editDraft.type = 'COMPLETE';
+      editDraft.unitReady = true;
+      editDraft.tool = '2ME';
+      editDraft.toolReady = true;
+    }
+    // PAX Pogo + Complete = Ready + 2ME bolted (implied)
+    if (loc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
+      editDraft.unitReady = true;
+      editDraft.tool = '2ME';
+      editDraft.toolReady = true;
+    }
   } else {
     // Default type based on what the spot accepts
     const defaultType = loc.accepts[0];
@@ -778,9 +1153,17 @@ function openSpotModal(locationId) {
       lu: '',
       type: defaultType,
       tool: 'none',
-      bolted: false,
+      toolReady: false,
+      unitReady: false,
       destination: 'None',
     };
+    // Max Move is always Complete + Ready + 2ME bolted from the moment a unit lands
+    if (locationId === 'max_move') {
+      editDraft.type = 'COMPLETE';
+      editDraft.unitReady = true;
+      editDraft.tool = '2ME';
+      editDraft.toolReady = true;
+    }
   }
 
   renderSpotModal();
@@ -797,14 +1180,33 @@ function renderSpotModal() {
 
   const typeOptions = state.strict ? loc.accepts : ['FD', 'PAX', 'COMPLETE'];
 
-  const showTool = d.type !== 'FD' || !state.strict;
+  // "Auto-complete" spots: spots where a Complete unit is, by definition, ready and 2ME bolted.
+  // This applies to Max Move (always) and PAX Pogos when holding a Complete unit.
+  const isMaxMove = loc.id === 'max_move';
+  const isPaxPogo = loc.group === 'PAX Pogos';
+  const isAutoComplete = isMaxMove || (isPaxPogo && d.type === 'COMPLETE');
+
+  // Max Move has no type picker (always Complete). PAX Pogo shows it (PAX or Complete).
+  const showType = !isMaxMove;
+  // Tool picker: hidden when the unit's status implies the tool (Max Move, or Complete on PAX Pogo).
+  // For standalone PAX on a PAX Pogo, the tool picker shows (none or 1ME).
+  const showTool = !isAutoComplete && (d.type !== 'FD' || !state.strict);
   const toolOptions = state.strict
     ? (d.type === 'FD' ? ['none']
        : d.type === 'PAX' ? ['none', '1ME']
        : ['none', '2ME'])
     : ['none', '1ME', '2ME'];
 
-  const showBolted = d.type === 'COMPLETE' && d.tool === '2ME';
+  // Unit-level Ready/Not Ready: applies to Complete units, but hidden on auto-complete spots.
+  const showUnitReady = !isAutoComplete && d.type === 'COMPLETE';
+  // Tool-level Ready/Not Ready: 1ME on PAX or 2ME on Complete (but never on auto-complete spots).
+  const showToolReady = !isAutoComplete && (
+    (d.type === 'PAX' && d.tool === '1ME') ||
+    (d.type === 'COMPLETE' && d.tool === '2ME')
+  );
+  const toolReadyLabel = d.tool === '1ME'
+    ? '1ME Status (Ready = loose to take)'
+    : '2ME Status (Ready = bolted down)';
 
   const content = `
     <div class="modal-title">${escapeHtml(loc.label)}</div>
@@ -819,6 +1221,7 @@ function renderSpotModal() {
              value="${escapeHtml(d.lu)}" autocomplete="off">
     </div>
 
+    ${showType ? `
     <div class="field">
       <div class="field-label">Type</div>
       <div class="segment type">
@@ -827,6 +1230,17 @@ function renderSpotModal() {
         `).join('')}
       </div>
     </div>
+    ` : ''}
+
+    ${showUnitReady ? `
+      <div class="field">
+        <div class="field-label">Unit Status</div>
+        <div class="segment ready">
+          <button class="${!d.unitReady ? 'active not-ready' : ''}" data-unit-ready="false">Not Ready</button>
+          <button class="${d.unitReady ? 'active ready' : ''}" data-unit-ready="true">Ready</button>
+        </div>
+      </div>
+    ` : ''}
 
     ${showTool ? `
       <div class="field">
@@ -839,12 +1253,12 @@ function renderSpotModal() {
       </div>
     ` : ''}
 
-    ${showBolted ? `
+    ${showToolReady ? `
       <div class="field">
-        <div class="field-label">2ME Bolted Down</div>
-        <div class="segment">
-          <button class="${!d.bolted ? 'active' : ''}" data-bolted="false">Not Bolted</button>
-          <button class="${d.bolted ? 'active' : ''}" data-bolted="true">Bolted</button>
+        <div class="field-label">${escapeHtml(toolReadyLabel)}</div>
+        <div class="segment ready">
+          <button class="${!d.toolReady ? 'active not-ready' : ''}" data-tool-ready="false">Not Ready</button>
+          <button class="${d.toolReady ? 'active ready' : ''}" data-tool-ready="true">Ready</button>
         </div>
       </div>
     ` : ''}
@@ -858,6 +1272,10 @@ function renderSpotModal() {
       </select>
     </div>
 
+    ${existing ? `
+      <button class="btn full move-btn" id="moveBtn">Move to Another Spot →</button>
+    ` : ''}
+
     <div class="modal-actions ${existing ? 'three' : ''}">
       <button class="btn ghost" id="cancelBtn">Cancel</button>
       ${existing ? `<button class="btn danger" id="clearBtn">Clear Spot</button>` : ''}
@@ -870,7 +1288,6 @@ function renderSpotModal() {
   // Wire events
   const luInput = document.getElementById('luInput');
   luInput.addEventListener('input', e => { editDraft.lu = e.target.value; });
-  luInput.focus();
 
   document.querySelectorAll('[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -881,6 +1298,19 @@ function renderSpotModal() {
         if (editDraft.type === 'PAX' && editDraft.tool === '2ME') editDraft.tool = 'none';
         if (editDraft.type === 'COMPLETE' && editDraft.tool === '1ME') editDraft.tool = 'none';
       }
+      // Unit-ready only applies to Complete; clear for others
+      if (editDraft.type !== 'COMPLETE') editDraft.unitReady = false;
+      // Tool readiness only applies in specific combos; clear if no longer relevant
+      const stillRelevant =
+        (editDraft.type === 'PAX' && editDraft.tool === '1ME') ||
+        (editDraft.type === 'COMPLETE' && editDraft.tool === '2ME');
+      if (!stillRelevant) editDraft.toolReady = false;
+      // PAX Pogo with Complete = implied 2ME bolted + Ready
+      if (loc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
+        editDraft.tool = '2ME';
+        editDraft.toolReady = true;
+        editDraft.unitReady = true;
+      }
       // Persist current LU input value
       editDraft.lu = document.getElementById('luInput').value;
       renderSpotModal();
@@ -890,15 +1320,23 @@ function renderSpotModal() {
   document.querySelectorAll('[data-tool]').forEach(btn => {
     btn.addEventListener('click', () => {
       editDraft.tool = btn.dataset.tool;
-      if (editDraft.tool !== '2ME') editDraft.bolted = false;
+      if (editDraft.tool === 'none') editDraft.toolReady = false;
       editDraft.lu = document.getElementById('luInput').value;
       renderSpotModal();
     });
   });
 
-  document.querySelectorAll('[data-bolted]').forEach(btn => {
+  document.querySelectorAll('[data-unit-ready]').forEach(btn => {
     btn.addEventListener('click', () => {
-      editDraft.bolted = btn.dataset.bolted === 'true';
+      editDraft.unitReady = btn.dataset.unitReady === 'true';
+      editDraft.lu = document.getElementById('luInput').value;
+      renderSpotModal();
+    });
+  });
+
+  document.querySelectorAll('[data-tool-ready]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editDraft.toolReady = btn.dataset.toolReady === 'true';
       editDraft.lu = document.getElementById('luInput').value;
       renderSpotModal();
     });
@@ -913,11 +1351,17 @@ function renderSpotModal() {
   if (existing) {
     document.getElementById('clearBtn').addEventListener('click', () => {
       if (confirm(`Clear ${loc.label}?`)) {
+        pushUndo(`Clear ${loc.label}`);
         delete state.spots[editLocationId];
         saveState();
         closeModal();
         renderBoard();
       }
+    });
+    document.getElementById('moveBtn').addEventListener('click', () => {
+      // Persist any in-progress edits before moving
+      editDraft.lu = document.getElementById('luInput').value.trim();
+      openMoveModal();
     });
   }
 
@@ -927,12 +1371,32 @@ function renderSpotModal() {
       alert('Enter an LU number');
       return;
     }
+    const targetLoc = LOCATIONS.find(l => l.id === editLocationId);
+    // Max Move always: Complete + Ready + 2ME bolted.
+    if (targetLoc && targetLoc.id === 'max_move') {
+      editDraft.type = 'COMPLETE';
+      editDraft.unitReady = true;
+      editDraft.tool = '2ME';
+      editDraft.toolReady = true;
+    }
+    // PAX Pogo holding a Complete unit: Ready + 2ME bolted are implied.
+    if (targetLoc && targetLoc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
+      editDraft.unitReady = true;
+      editDraft.tool = '2ME';
+      editDraft.toolReady = true;
+    }
+    // Auto-strip 2ME when placing into Complete Storage
+    if (targetLoc && targetLoc.group === 'Complete Storage' && editDraft.tool === '2ME') {
+      editDraft.tool = 'none';
+      editDraft.toolReady = false;
+    }
     const v = validateUnit(editDraft, editLocationId);
     if (!v.ok) {
       if (!confirm(`${v.reason}.\n\nSave anyway? (Turn off Strict mode to skip this warning.)`)) {
         return;
       }
     }
+    pushUndo(existing ? `Edit ${loc.label}` : `Add to ${loc.label}`);
     state.spots[editLocationId] = { ...editDraft };
     saveState();
     closeModal();
@@ -976,6 +1440,7 @@ function openPickerModal() {
   document.getElementById('pickCancel').addEventListener('click', closeModal);
   document.querySelectorAll('.picker-item').forEach(btn => {
     btn.addEventListener('click', () => {
+      pushUndo('Add to load order');
       state.loadOrder.push({
         id: uid(),
         lu: btn.dataset.lu,
@@ -1016,10 +1481,159 @@ function openCustomLoadModal() {
     const lu = luInput.value.trim();
     if (!lu) { alert('Enter an LU or label'); return; }
     const note = document.getElementById('customNote').value.trim();
+    pushUndo('Add custom to load');
     state.loadOrder.push({ id: uid(), lu, note });
     saveState();
     closeModal();
     renderLoad();
+  });
+}
+
+// ============================================
+// MOVE MODAL — relocate a unit to another spot
+// ============================================
+function openMoveModal(groupFilter) {
+  // Detect whether this was launched from the spot-edit modal vs. directly from the board.
+  // If the edit modal is currently visible, we'll return to it on cancel.
+  const launchedFromEdit = !!document.getElementById('saveBtn');
+  const fromLoc = LOCATIONS.find(l => l.id === editLocationId);
+  const unit = editDraft;
+  const unitType = unit.type;
+
+  // "LOAD" isn't a board destination — it means "load it onto the truck". If a unit's
+  // destination is LOAD and the user taps the dest button, route them to the load order
+  // tab instead of showing an empty move picker.
+  if (groupFilter === 'LOAD') {
+    closeModal();
+    // Add to load order automatically
+    if (unit.lu && !state.loadOrder.some(x => x.lu === unit.lu)) {
+      pushUndo(`Queue LU ${unit.lu} for load`);
+      state.loadOrder.push({
+        id: uid(),
+        lu: unit.lu,
+        note: `${unit.type} • ${fromLoc.label}`,
+      });
+      saveState();
+    }
+    setTab('load');
+    return;
+  }
+
+  // Compute destinations: every other spot that accepts this type (or any spot in Loose mode).
+  // If groupFilter is set, restrict to spots in that group only.
+  const destinations = LOCATIONS.filter(l => {
+    if (l.id === editLocationId) return false;
+    if (groupFilter && l.group !== groupFilter) return false;
+    if (!state.strict) return true;
+    return l.accepts.includes(unitType);
+  });
+
+  // Find which spots are occupied (we'll show them with the LU on them so user can decide).
+  const occupiedMap = {};
+  for (const [locId, u] of Object.entries(state.spots)) {
+    occupiedMap[locId] = u;
+  }
+
+  const byGroup = {};
+  for (const l of destinations) {
+    if (!byGroup[l.group]) byGroup[l.group] = [];
+    byGroup[l.group].push(l);
+  }
+
+  let groupHtml = '';
+  for (const group of GROUP_ORDER) {
+    const locs = byGroup[group];
+    if (!locs || locs.length === 0) continue;
+    groupHtml += `
+      <div class="move-group-title">${group}</div>
+      <div class="move-spot-list">
+        ${locs.map(l => {
+          const occupant = occupiedMap[l.id];
+          return `
+            <button class="move-spot-btn ${occupant ? 'occupied' : ''}" data-target="${l.id}">
+              <span class="move-spot-name">${escapeHtml(l.label)}</span>
+              <span class="move-spot-status">
+                ${occupant
+                  ? `LU ${escapeHtml(occupant.lu)} (${occupant.type})`
+                  : 'Empty'}
+              </span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  const headingText = groupFilter
+    ? `To ${groupFilter}`
+    : `From ${fromLoc.label}`;
+  const hintText = groupFilter
+    ? `Pick a ${groupFilter} spot. Occupied spots are flagged — moving onto one will replace it.`
+    : `Tap a destination spot to move this ${unitType} unit there. Occupied spots are flagged — moving onto one will replace it.`;
+
+  const content = `
+    <div class="modal-title">Move LU ${escapeHtml(unit.lu || '?')}</div>
+    <div class="modal-heading">${escapeHtml(headingText)}</div>
+    <div class="move-hint">${escapeHtml(hintText)}</div>
+    ${groupHtml || '<div class="empty-state">No valid destination spots available.</div>'}
+    <div class="modal-actions solo">
+      <button class="btn ghost" id="moveCancel">Cancel</button>
+    </div>
+  `;
+  openModal(content);
+  document.getElementById('moveCancel').addEventListener('click', () => {
+    if (launchedFromEdit) {
+      // Return to the spot edit modal (don't lose unsaved edits)
+      renderSpotModal();
+    } else {
+      closeModal();
+    }
+  });
+  document.querySelectorAll('.move-spot-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target;
+      const targetLoc = LOCATIONS.find(l => l.id === targetId);
+      const occupant = occupiedMap[targetId];
+
+      // Build the unit object we'll place at the target (apply normalization rules)
+      const moved = { ...editDraft };
+      if (targetLoc.id === 'max_move') {
+        moved.type = 'COMPLETE';
+        moved.unitReady = true;
+        moved.tool = '2ME';
+        moved.toolReady = true;
+      }
+      if (targetLoc.group === 'PAX Pogos' && moved.type === 'COMPLETE') {
+        moved.unitReady = true;
+        moved.tool = '2ME';
+        moved.toolReady = true;
+      }
+      if (targetLoc.group === 'Complete Storage' && moved.tool === '2ME') {
+        moved.tool = 'none';
+        moved.toolReady = false;
+      }
+
+      // Strict-mode validation against target
+      const v = validateUnit(moved, targetId);
+      if (!v.ok) {
+        if (!confirm(`${v.reason}.\n\nMove anyway? (Turn off Strict mode to skip this warning.)`)) {
+          return;
+        }
+      }
+
+      // Confirm overwrite
+      if (occupant) {
+        if (!confirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`)) return;
+      }
+
+      // Remove from source, place at target
+      pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
+      delete state.spots[editLocationId];
+      state.spots[targetId] = moved;
+      saveState();
+      closeModal();
+      renderBoard();
+    });
   });
 }
 
@@ -1040,7 +1654,46 @@ function setTab(tab) {
 function refreshRulesToggle() {
   const t = document.getElementById('rulesToggle');
   t.classList.toggle('loose', !state.strict);
-  document.getElementById('rulesLabel').textContent = state.strict ? 'Strict' : 'Loose';
+  document.getElementById('rulesLabel').textContent = state.strict ? 'S' : 'L';
+}
+
+function refreshQuickViewToggle() {
+  const t = document.getElementById('quickBtn');
+  t.classList.toggle('active', !!state.quickView);
+  document.getElementById('quickIcon').textContent = state.quickView ? '●' : '◐';
+}
+
+function refreshUndoButton() {
+  const t = document.getElementById('undoBtn');
+  t.style.display = undoStack.length > 0 ? '' : 'none';
+}
+
+// ============================================
+// UNDO STACK
+// ============================================
+// Each entry is a snapshot: { spots, loadOrder, label }
+const undoStack = [];
+const UNDO_LIMIT = 10;
+
+function pushUndo(label) {
+  undoStack.push({
+    spots: JSON.parse(JSON.stringify(state.spots)),
+    loadOrder: JSON.parse(JSON.stringify(state.loadOrder)),
+    label,
+  });
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  refreshUndoButton();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  const prev = undoStack.pop();
+  state.spots = prev.spots;
+  state.loadOrder = prev.loadOrder;
+  saveState();
+  refreshUndoButton();
+  if (state.activeTab === 'board') renderBoard();
+  else renderLoad();
 }
 
 // ============================================
@@ -1049,6 +1702,8 @@ function refreshRulesToggle() {
 loadState();
 renderBoard();
 refreshRulesToggle();
+refreshQuickViewToggle();
+refreshUndoButton();
 
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => setTab(t.dataset.tab));
@@ -1063,6 +1718,15 @@ document.getElementById('rulesToggle').addEventListener('click', () => {
   refreshRulesToggle();
   renderBoard();
 });
+
+document.getElementById('quickBtn').addEventListener('click', () => {
+  state.quickView = !state.quickView;
+  saveState();
+  refreshQuickViewToggle();
+  renderBoard();
+});
+
+document.getElementById('undoBtn').addEventListener('click', performUndo);
 
 // Prevent zoom on double-tap
 let lastTouch = 0;
