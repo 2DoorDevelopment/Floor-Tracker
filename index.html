@@ -748,6 +748,8 @@ opacity: 1;
   gap: 6px;
 }
 .floor-bottom-row { padding: 0 10px 10px; }
+.floor-bottom-inner { display: flex; gap: 8px; }
+.floor-bottom-inner .floor-half { flex: 1; }
 .map-spot {
   background: rgba(255,255,255,0.015);
   border: 1px dashed var(--border-bright);
@@ -1262,12 +1264,17 @@ function renderMap() {
           ${mapSpotHtml('fd_1')}
           ${mapSpotHtml('fd_2')}
           ${mapSpotHtml('fd_3')}
-          ${mapSpotHtml('fd_overflow_1')}
-          ${mapSpotHtml('fd_overflow_2')}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_1') : ''}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_2') : ''}
         </div>
       </div>
       <div class="floor-bottom-row">
-        ${mapSpotHtml('max_move')}
+        <div class="floor-bottom-inner">
+          <div class="floor-half"></div>
+          <div class="floor-half">
+            ${mapSpotHtml('max_move', 'tall')}
+          </div>
+        </div>
       </div>
     </div>
   `;
