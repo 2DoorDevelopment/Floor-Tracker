@@ -1879,6 +1879,7 @@ function performUndo() {
   saveState();
   refreshUndoButton();
   if (state.activeTab === 'board') renderBoard();
+  else if (state.activeTab === 'map') renderMap();
   else renderLoad();
 }
 
