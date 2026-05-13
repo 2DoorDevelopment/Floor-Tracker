@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0e14">
+<title>Floor Tracker</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0e14'/><text x='50' y='62' font-family='monospace' font-size='38' fill='%2300d9ff' text-anchor='middle' font-weight='bold'>FT</text></svg>">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --panel: #131923;
+    --panel-2: #1c2433;
+    --border: #2a3447;
+    --border-bright: #3d4d6b;
+    --text: #e8eef7;
+    --text-dim: #8a98b0;
+    --text-faint: #5a677d;
+    --accent: #00d9ff;
+    --accent-dim: #0099b8;
+    --warn: #ffb547;
+    --danger: #ff5577;
+    --good: #4ade80;
+    --fd: #ffb547;
+    --pax: #00d9ff;
+    --complete: #4ade80;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+    overscroll-behavior: none;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+
+/* HEADER */
+header {
+position: sticky; top: 0; z-index: 10;
+background: rgba(10, 14, 20, 0.92);
+backdrop-filter: blur(12px);
+-webkit-backdrop-filter: blur(12px);
+border-bottom: 1px solid var(–border);
+padding: 14px 16px 12px;
+display: flex; align-items: center; justify-content: space-between;
+}
+header h1 {
+font-size: 14px; font-weight: 700;
+letter-spacing: 0.12em;
+text-transform: uppercase;
+color: var(–accent);
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+}
+.rules-toggle {
+display: flex; align-items: center; gap: 8px;
+font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+color: var(–text-dim);
+cursor: pointer;
+user-select: none;
+}
+.rules-toggle .label-text { font-weight: 600; }
+.rules-toggle.loose .label-text { color: var(–warn); }
+.toggle-switch {
+width: 38px; height: 22px;
+background: var(–accent-dim);
+border: 1px solid var(–accent);
+border-radius: 12px;
+position: relative;
+transition: background 0.15s, border-color 0.15s;
+flex-shrink: 0;
+}
+.rules-toggle.loose .toggle-switch {
+background: var(–panel-2);
+border-color: var(–warn);
+}
+.toggle-switch::after {
+content: ‘’; position: absolute;
+top: 2px; left: 18px;
+width: 16px; height: 16px;
+background: var(–text); border-radius: 50%;
+transition: left 0.15s;
+}
+.rules-toggle.loose .toggle-switch::after { left: 2px; }
+
+/* TABS */
+.tabs {
+display: flex;
+background: var(–panel);
+border-bottom: 1px solid var(–border);
+position: sticky; top: 51px; z-index: 9;
+}
+.tab {
+flex: 1; padding: 14px 8px;
+text-align: center;
+font-size: 12px; font-weight: 700;
+text-transform: uppercase; letter-spacing: 0.1em;
+color: var(–text-faint);
+border-bottom: 2px solid transparent;
+cursor: pointer;
+background: transparent;
+border-top: none; border-left: none; border-right: none;
+font-family: inherit;
+}
+.tab.active { color: var(–accent); border-bottom-color: var(–accent); }
+
+main { padding: 16px 12px 16px; max-width: 700px; margin: 0 auto; }
+
+/* GROUPS */
+.group { margin-bottom: 20px; }
+.group-header {
+display: flex; align-items: baseline; justify-content: space-between;
+padding: 0 4px 10px;
+}
+.group-title {
+font-size: 11px; font-weight: 700;
+text-transform: uppercase; letter-spacing: 0.14em;
+color: var(–text-dim);
+}
+.group-count {
+font-size: 10px;
+color: var(–text-faint);
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+}
+.spots {
+display: grid;
+grid-template-columns: repeat(2, 1fr);
+gap: 8px;
+}
+.spots.solo { grid-template-columns: 1fr; }
+.spot {
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 10px;
+padding: 12px;
+min-height: 78px;
+display: flex; flex-direction: column;
+cursor: pointer;
+position: relative;
+transition: background 0.1s;
+text-align: left;
+color: inherit;
+font-family: inherit;
+font-size: inherit;
+width: 100%;
+}
+.spot:active { background: var(–panel-2); }
+.spot.empty {
+border-style: dashed;
+align-items: center; justify-content: center;
+color: var(–text-faint);
+}
+.spot.filled.fd { border-color: var(–fd); border-left-width: 4px; padding-left: 9px; }
+.spot.filled.pax { border-color: var(–pax); border-left-width: 4px; padding-left: 9px; }
+.spot.filled.complete { border-color: var(–complete); border-left-width: 4px; padding-left: 9px; }
+.spot-label {
+font-size: 10px;
+color: var(–text-faint);
+text-transform: uppercase; letter-spacing: 0.08em;
+margin-bottom: 4px;
+}
+.spot.empty .spot-label { color: var(–text-faint); margin-bottom: 6px; }
+.spot-empty-plus {
+font-size: 24px; font-weight: 200;
+color: var(–text-faint);
+line-height: 1;
+}
+.spot-lu {
+font-size: 22px; font-weight: 700;
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+color: var(–text);
+letter-spacing: -0.02em;
+line-height: 1.1;
+}
+.spot-meta {
+display: flex; gap: 4px; flex-wrap: wrap;
+margin-top: 6px;
+}
+.badge {
+font-size: 9px; font-weight: 700;
+text-transform: uppercase; letter-spacing: 0.06em;
+padding: 2px 5px; border-radius: 4px;
+background: var(–panel-2);
+color: var(–text-dim);
+border: 1px solid var(–border);
+white-space: nowrap;
+}
+.badge.type-fd { color: var(–fd); border-color: rgba(255,181,71,0.4); }
+.badge.type-pax { color: var(–pax); border-color: rgba(0,217,255,0.4); }
+.badge.type-complete { color: var(–complete); border-color: rgba(74,222,128,0.4); }
+.badge.tool { color: var(–warn); border-color: rgba(255,181,71,0.4); }
+.badge.bolted { color: var(–good); border-color: rgba(74,222,128,0.4); }
+.badge.unbolted { color: var(–danger); border-color: rgba(255,85,119,0.4); }
+.badge.dest { color: var(–text); border-color: var(–border-bright); }
+
+/* LOAD ORDER */
+.load-section { padding: 0 4px; }
+.load-empty {
+text-align: center;
+color: var(–text-faint);
+font-size: 13px;
+padding: 30px 20px;
+border: 1px dashed var(–border);
+border-radius: 10px;
+margin-bottom: 16px;
+}
+.load-list {
+display: flex; flex-direction: column;
+gap: 8px;
+margin-bottom: 16px;
+}
+.load-item {
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 10px;
+padding: 10px 10px 10px 14px;
+display: flex; align-items: center; gap: 10px;
+}
+.load-num {
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-size: 11px; font-weight: 700;
+color: var(–accent);
+min-width: 22px;
+letter-spacing: 0.05em;
+}
+.load-body {
+flex: 1;
+display: flex; flex-direction: column;
+gap: 2px;
+min-width: 0;
+}
+.load-lu {
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-size: 16px; font-weight: 700;
+color: var(–text);
+line-height: 1.1;
+}
+.load-note {
+font-size: 11px;
+color: var(–text-dim);
+}
+.load-controls {
+display: flex; align-items: center; gap: 4px;
+}
+.icon-btn {
+width: 32px; height: 32px;
+background: var(–panel-2);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–text-dim);
+font-size: 14px;
+display: flex; align-items: center; justify-content: center;
+cursor: pointer;
+font-family: inherit;
+padding: 0;
+}
+.icon-btn:active { background: var(–border); }
+.icon-btn.danger { color: var(–danger); }
+.icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.load-actions {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 8px;
+margin-bottom: 16px;
+}
+.btn {
+background: var(–panel);
+border: 1px solid var(–border-bright);
+border-radius: 10px;
+color: var(–text);
+padding: 14px 10px;
+font-size: 12px;
+font-weight: 600;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+cursor: pointer;
+font-family: inherit;
+}
+.btn:active { background: var(–panel-2); }
+.btn.primary {
+background: var(–accent-dim);
+border-color: var(–accent);
+color: var(–bg);
+font-weight: 700;
+}
+.btn.primary:active { background: var(–accent); }
+.btn.danger {
+border-color: rgba(255,85,119,0.5);
+color: var(–danger);
+}
+.btn.ghost {
+background: transparent;
+border-color: var(–border);
+color: var(–text-dim);
+}
+.btn.full { width: 100%; }
+
+/* MODAL */
+.modal-backdrop {
+position: fixed; inset: 0;
+background: rgba(0, 0, 0, 0.7);
+z-index: 100;
+display: flex; align-items: flex-end;
+animation: fade-in 0.15s ease;
+}
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+.modal {
+background: var(–panel);
+border-top: 1px solid var(–border-bright);
+border-radius: 16px 16px 0 0;
+width: 100%;
+max-height: 90vh;
+overflow-y: auto;
+padding: 8px 16px calc(env(safe-area-inset-bottom) + 20px);
+animation: slide-up 0.2s ease;
+}
+@keyframes slide-up { from { transform: translateY(20px) } to { transform: translateY(0) } }
+.modal-handle {
+width: 36px; height: 4px;
+background: var(–border-bright);
+border-radius: 2px;
+margin: 8px auto 16px;
+}
+.modal-title {
+font-size: 11px;
+text-transform: uppercase;
+letter-spacing: 0.12em;
+color: var(–text-faint);
+margin-bottom: 4px;
+}
+.modal-heading {
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-size: 22px;
+font-weight: 700;
+color: var(–text);
+margin-bottom: 20px;
+}
+.field { margin-bottom: 16px; }
+.field-label {
+font-size: 10px; font-weight: 700;
+text-transform: uppercase; letter-spacing: 0.1em;
+color: var(–text-dim);
+margin-bottom: 6px;
+}
+.input, .select {
+width: 100%;
+background: var(–bg);
+border: 1px solid var(–border-bright);
+border-radius: 8px;
+color: var(–text);
+padding: 12px 14px;
+font-size: 16px;
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+-webkit-appearance: none;
+appearance: none;
+}
+.input:focus, .select:focus {
+outline: none;
+border-color: var(–accent);
+}
+.select {
+background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘12’ viewBox=‘0 0 12 12’%3E%3Cpath fill=’%238a98b0’ d=‘M6 8.5L1.5 4h9z’/%3E%3C/svg%3E”);
+background-repeat: no-repeat;
+background-position: right 14px center;
+padding-right: 36px;
+}
+.segment {
+display: flex;
+background: var(–bg);
+border: 1px solid var(–border-bright);
+border-radius: 8px;
+padding: 3px;
+gap: 3px;
+}
+.segment button {
+flex: 1;
+padding: 10px 6px;
+background: transparent;
+border: none;
+color: var(–text-dim);
+font-size: 12px;
+font-weight: 600;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+border-radius: 6px;
+cursor: pointer;
+font-family: inherit;
+}
+.segment button.active {
+background: var(–panel-2);
+color: var(–text);
+}
+.segment.type button.active.fd { color: var(–fd); }
+.segment.type button.active.pax { color: var(–pax); }
+.segment.type button.active.complete { color: var(–complete); }
+
+.modal-actions {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 8px;
+margin-top: 8px;
+}
+.modal-actions.three { grid-template-columns: 1fr 1fr 1fr; }
+.modal-actions.solo { grid-template-columns: 1fr; }
+
+.warning {
+background: rgba(255, 85, 119, 0.1);
+border: 1px solid rgba(255, 85, 119, 0.3);
+color: var(–danger);
+padding: 10px 12px;
+border-radius: 8px;
+font-size: 13px;
+margin-bottom: 12px;
+}
+
+.picker-list {
+display: flex; flex-direction: column;
+gap: 6px;
+margin-bottom: 12px;
+max-height: 50vh;
+overflow-y: auto;
+}
+.picker-item {
+background: var(–bg);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 12px 14px;
+display: flex; align-items: center; gap: 10px;
+cursor: pointer;
+text-align: left;
+color: inherit;
+font-family: inherit;
+width: 100%;
+}
+.picker-item:active { background: var(–panel-2); }
+.picker-item.disabled { opacity: 0.4; pointer-events: none; }
+.picker-lu {
+font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-weight: 700;
+font-size: 16px;
+flex: 1;
+}
+.picker-where {
+font-size: 11px;
+color: var(–text-dim);
+text-transform: uppercase;
+letter-spacing: 0.05em;
+}
+
+.empty-state {
+text-align: center;
+color: var(–text-faint);
+padding: 30px 20px;
+font-size: 13px;
+}
+</style>
+
+</head>
+<body>
+
+<header>
+  <h1>Floor Tracker</h1>
+  <button class="rules-toggle" id="rulesToggle">
+    <span class="label-text" id="rulesLabel">Strict</span>
+    <span class="toggle-switch"></span>
+  </button>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="board">Board</button>
+  <button class="tab" data-tab="load">Load Order</button>
+</div>
+
+<main>
+  <div id="boardView"></div>
+  <div id="loadView" style="display:none"></div>
+</main>
+
+<div id="modalRoot"></div>
+
+<script>
+// ============================================
+// CONFIG
+// ============================================
+const LOCATIONS = [
+  // Safran Pogos
+  { id: 'safran_1', label: 'Safran 1', group: 'Safran Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_2', label: 'Safran 2', group: 'Safran Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_3', label: 'Safran 3', group: 'Safran Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_4', label: 'Safran 4', group: 'Safran Pogos', accepts: ['COMPLETE'] },
+  // Max Move
+  { id: 'max_move', label: 'Max Move', group: 'Max Move', accepts: ['COMPLETE'] },
+  // Complete Storage
+  { id: 'storage_1', label: 'Storage 1', group: 'Complete Storage', accepts: ['COMPLETE'] },
+  { id: 'storage_2', label: 'Storage 2', group: 'Complete Storage', accepts: ['COMPLETE'] },
+  // FD Spots
+  { id: 'fd_1', label: 'FD 1', group: 'FD Spots', accepts: ['FD'] },
+  { id: 'fd_2', label: 'FD 2', group: 'FD Spots', accepts: ['FD'] },
+  { id: 'fd_3', label: 'FD 3', group: 'FD Spots', accepts: ['FD'] },
+  { id: 'fd_overflow_1', label: 'FD Overflow 1', group: 'FD Spots', accepts: ['FD'] },
+  { id: 'fd_overflow_2', label: 'FD Overflow 2', group: 'FD Spots', accepts: ['FD'] },
+  // PAX Pogos
+  { id: 'pax_pogo_1', label: 'PAX Pogo 1', group: 'PAX Pogos', accepts: ['PAX', 'COMPLETE'] },
+  { id: 'pax_pogo_2', label: 'PAX Pogo 2', group: 'PAX Pogos', accepts: ['PAX', 'COMPLETE'] },
+];
+
+const GROUP_ORDER = ['Safran Pogos', 'Max Move', 'Complete Storage', 'FD Spots', 'PAX Pogos'];
+const DESTINATIONS = ['None', 'Safran Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'Complete Storage', 'LOAD'];
+
+// ============================================
+// STATE
+// ============================================
+const STORAGE_KEY = 'floor_tracker_v1';
+
+let state = {
+  spots: {}, // { locationId: { lu, type, tool, bolted, destination } }
+  loadOrder: [], // [ { id, lu, note } ]
+  strict: true,
+  activeTab: 'board',
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state = { ...state, ...parsed };
+    }
+  } catch (e) {
+    console.error('Load failed:', e);
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      spots: state.spots,
+      loadOrder: state.loadOrder,
+      strict: state.strict,
+    }));
+  } catch (e) {
+    console.error('Save failed:', e);
+  }
+}
+
+// ============================================
+// HELPERS
+// ============================================
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function getSpot(locationId) {
+  return state.spots[locationId] || null;
+}
+
+function getAllUnits() {
+  return Object.entries(state.spots).map(([locId, unit]) => ({
+    ...unit,
+    location: locId,
+  }));
+}
+
+function validateUnit(unit, locationId) {
+  if (!state.strict) return { ok: true };
+  const loc = LOCATIONS.find(l => l.id === locationId);
+  if (!loc) return { ok: false, reason: 'Unknown location' };
+  if (unit.type === 'FD' && unit.tool && unit.tool !== 'none') {
+    return { ok: false, reason: 'FD cannot have a tool' };
+  }
+  if (unit.type === 'PAX' && unit.tool === '2ME') {
+    return { ok: false, reason: 'Standalone PAX cannot have 2ME' };
+  }
+  if (unit.type === 'COMPLETE' && unit.tool === '1ME') {
+    return { ok: false, reason: 'Mated unit cannot have 1ME' };
+  }
+  if (!loc.accepts.includes(unit.type)) {
+    return { ok: false, reason: `${loc.label} does not accept ${unit.type}` };
+  }
+  return { ok: true };
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ============================================
+// RENDER: BOARD
+// ============================================
+function renderBoard() {
+  const root = document.getElementById('boardView');
+  const byGroup = {};
+  for (const loc of LOCATIONS) {
+    if (!byGroup[loc.group]) byGroup[loc.group] = [];
+    byGroup[loc.group].push(loc);
+  }
+
+  let html = '';
+  for (const group of GROUP_ORDER) {
+    const locs = byGroup[group] || [];
+    const filled = locs.filter(l => getSpot(l.id)).length;
+    html += `
+      <section class="group">
+        <div class="group-header">
+          <span class="group-title">${group}</span>
+          <span class="group-count">${filled}/${locs.length}</span>
+        </div>
+        <div class="spots${locs.length === 1 ? ' solo' : ''}">
+          ${locs.map(renderSpot).join('')}
+        </div>
+      </section>
+    `;
+  }
+  root.innerHTML = html;
+
+  root.querySelectorAll('.spot').forEach(el => {
+    el.addEventListener('click', () => openSpotModal(el.dataset.location));
+  });
+}
+
+function renderSpot(loc) {
+  const unit = getSpot(loc.id);
+  if (!unit) {
+    return `
+      <button class="spot empty" data-location="${loc.id}">
+        <div class="spot-label">${escapeHtml(loc.label)}</div>
+        <div class="spot-empty-plus">+</div>
+      </button>
+    `;
+  }
+  const typeClass = unit.type.toLowerCase();
+  const badges = [];
+  badges.push(`<span class="badge type-${typeClass}">${unit.type}</span>`);
+  if (unit.tool && unit.tool !== 'none') {
+    badges.push(`<span class="badge tool">${unit.tool}</span>`);
+  }
+  if (unit.type === 'COMPLETE' && unit.tool === '2ME') {
+    badges.push(unit.bolted
+      ? `<span class="badge bolted">Bolted</span>`
+      : `<span class="badge unbolted">Not bolted</span>`);
+  }
+  if (unit.destination && unit.destination !== 'None') {
+    badges.push(`<span class="badge dest">→ ${escapeHtml(unit.destination)}</span>`);
+  }
+  return `
+    <button class="spot filled ${typeClass}" data-location="${loc.id}">
+      <div class="spot-label">${escapeHtml(loc.label)}</div>
+      <div class="spot-lu">${escapeHtml(unit.lu)}</div>
+      <div class="spot-meta">${badges.join('')}</div>
+    </button>
+  `;
+}
+
+// ============================================
+// RENDER: LOAD ORDER
+// ============================================
+function renderLoad() {
+  const root = document.getElementById('loadView');
+  const items = state.loadOrder;
+  let html = '<div class="load-section">';
+
+  if (items.length === 0) {
+    html += `<div class="load-empty">Load order is empty.<br>Add units below.</div>`;
+  } else {
+    html += '<div class="load-list">';
+    items.forEach((item, i) => {
+      html += `
+        <div class="load-item">
+          <span class="load-num">${i + 1}.</span>
+          <div class="load-body">
+            <span class="load-lu">${escapeHtml(item.lu)}</span>
+            ${item.note ? `<span class="load-note">${escapeHtml(item.note)}</span>` : ''}
+          </div>
+          <div class="load-controls">
+            <button class="icon-btn" data-act="up" data-id="${item.id}" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button class="icon-btn" data-act="down" data-id="${item.id}" ${i === items.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="icon-btn danger" data-act="remove" data-id="${item.id}">×</button>
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+
+  html += `
+    <div class="load-actions">
+      <button class="btn primary" id="addFromBoard">+ From Board</button>
+      <button class="btn" id="addCustom">+ Custom</button>
+    </div>
+    ${items.length > 0 ? '<button class="btn ghost full" id="clearLoad">Clear All</button>' : ''}
+  </div>`;
+
+  root.innerHTML = html;
+
+  root.querySelectorAll('.icon-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.id;
+      const act = b.dataset.act;
+      const idx = state.loadOrder.findIndex(x => x.id === id);
+      if (idx === -1) return;
+      if (act === 'up' && idx > 0) {
+        [state.loadOrder[idx - 1], state.loadOrder[idx]] = [state.loadOrder[idx], state.loadOrder[idx - 1]];
+      } else if (act === 'down' && idx < state.loadOrder.length - 1) {
+        [state.loadOrder[idx + 1], state.loadOrder[idx]] = [state.loadOrder[idx], state.loadOrder[idx + 1]];
+      } else if (act === 'remove') {
+        state.loadOrder.splice(idx, 1);
+      }
+      saveState();
+      renderLoad();
+    });
+  });
+
+  document.getElementById('addFromBoard')?.addEventListener('click', openPickerModal);
+  document.getElementById('addCustom')?.addEventListener('click', openCustomLoadModal);
+  document.getElementById('clearLoad')?.addEventListener('click', () => {
+    if (confirm('Clear the entire load order?')) {
+      state.loadOrder = [];
+      saveState();
+      renderLoad();
+    }
+  });
+}
+
+// ============================================
+// MODAL HELPERS
+// ============================================
+function closeModal() {
+  document.getElementById('modalRoot').innerHTML = '';
+}
+
+function openModal(content) {
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="modal-backdrop" id="modalBackdrop">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        ${content}
+      </div>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').addEventListener('click', closeModal);
+}
+
+// ============================================
+// SPOT EDIT MODAL
+// ============================================
+let editDraft = null;
+let editLocationId = null;
+
+function openSpotModal(locationId) {
+  editLocationId = locationId;
+  const loc = LOCATIONS.find(l => l.id === locationId);
+  const existing = getSpot(locationId);
+
+  if (existing) {
+    editDraft = { ...existing };
+  } else {
+    // Default type based on what the spot accepts
+    const defaultType = loc.accepts[0];
+    editDraft = {
+      lu: '',
+      type: defaultType,
+      tool: 'none',
+      bolted: false,
+      destination: 'None',
+    };
+  }
+
+  renderSpotModal();
+}
+
+function renderSpotModal() {
+  const loc = LOCATIONS.find(l => l.id === editLocationId);
+  const existing = getSpot(editLocationId);
+  const d = editDraft;
+
+  const validation = d.lu.trim()
+    ? validateUnit(d, editLocationId)
+    : { ok: true };
+
+  const typeOptions = state.strict ? loc.accepts : ['FD', 'PAX', 'COMPLETE'];
+
+  const showTool = d.type !== 'FD' || !state.strict;
+  const toolOptions = state.strict
+    ? (d.type === 'FD' ? ['none']
+       : d.type === 'PAX' ? ['none', '1ME']
+       : ['none', '2ME'])
+    : ['none', '1ME', '2ME'];
+
+  const showBolted = d.type === 'COMPLETE' && d.tool === '2ME';
+
+  const content = `
+    <div class="modal-title">${escapeHtml(loc.label)}</div>
+    <div class="modal-heading">${existing ? 'Edit Unit' : 'Add Unit'}</div>
+
+    ${!validation.ok ? `<div class="warning">${escapeHtml(validation.reason)}</div>` : ''}
+
+    <div class="field">
+      <div class="field-label">Line Unit (LU)</div>
+      <input class="input" id="luInput" type="text" inputmode="numeric"
+             placeholder="e.g. 1216"
+             value="${escapeHtml(d.lu)}" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <div class="field-label">Type</div>
+      <div class="segment type">
+        ${typeOptions.map(t => `
+          <button class="${d.type === t ? 'active ' + t.toLowerCase() : ''}" data-type="${t}">${t}</button>
+        `).join('')}
+      </div>
+    </div>
+
+    ${showTool ? `
+      <div class="field">
+        <div class="field-label">Tool</div>
+        <div class="segment">
+          ${toolOptions.map(t => `
+            <button class="${d.tool === t ? 'active' : ''}" data-tool="${t}">${t === 'none' ? 'None' : t}</button>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${showBolted ? `
+      <div class="field">
+        <div class="field-label">2ME Bolted Down</div>
+        <div class="segment">
+          <button class="${!d.bolted ? 'active' : ''}" data-bolted="false">Not Bolted</button>
+          <button class="${d.bolted ? 'active' : ''}" data-bolted="true">Bolted</button>
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="field">
+      <div class="field-label">Next Destination</div>
+      <select class="select" id="destSelect">
+        ${DESTINATIONS.map(dst => `
+          <option value="${dst}" ${d.destination === dst ? 'selected' : ''}>${dst}</option>
+        `).join('')}
+      </select>
+    </div>
+
+    <div class="modal-actions ${existing ? 'three' : ''}">
+      <button class="btn ghost" id="cancelBtn">Cancel</button>
+      ${existing ? `<button class="btn danger" id="clearBtn">Clear Spot</button>` : ''}
+      <button class="btn primary" id="saveBtn">${existing ? 'Save' : 'Add'}</button>
+    </div>
+  `;
+
+  openModal(content);
+
+  // Wire events
+  const luInput = document.getElementById('luInput');
+  luInput.addEventListener('input', e => { editDraft.lu = e.target.value; });
+  luInput.focus();
+
+  document.querySelectorAll('[data-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editDraft.type = btn.dataset.type;
+      // Reset tool if incompatible
+      if (state.strict) {
+        if (editDraft.type === 'FD') editDraft.tool = 'none';
+        if (editDraft.type === 'PAX' && editDraft.tool === '2ME') editDraft.tool = 'none';
+        if (editDraft.type === 'COMPLETE' && editDraft.tool === '1ME') editDraft.tool = 'none';
+      }
+      // Persist current LU input value
+      editDraft.lu = document.getElementById('luInput').value;
+      renderSpotModal();
+    });
+  });
+
+  document.querySelectorAll('[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editDraft.tool = btn.dataset.tool;
+      if (editDraft.tool !== '2ME') editDraft.bolted = false;
+      editDraft.lu = document.getElementById('luInput').value;
+      renderSpotModal();
+    });
+  });
+
+  document.querySelectorAll('[data-bolted]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editDraft.bolted = btn.dataset.bolted === 'true';
+      editDraft.lu = document.getElementById('luInput').value;
+      renderSpotModal();
+    });
+  });
+
+  document.getElementById('destSelect').addEventListener('change', e => {
+    editDraft.destination = e.target.value;
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+
+  if (existing) {
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (confirm(`Clear ${loc.label}?`)) {
+        delete state.spots[editLocationId];
+        saveState();
+        closeModal();
+        renderBoard();
+      }
+    });
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    editDraft.lu = document.getElementById('luInput').value.trim();
+    if (!editDraft.lu) {
+      alert('Enter an LU number');
+      return;
+    }
+    const v = validateUnit(editDraft, editLocationId);
+    if (!v.ok) {
+      if (!confirm(`${v.reason}.\n\nSave anyway? (Turn off Strict mode to skip this warning.)`)) {
+        return;
+      }
+    }
+    state.spots[editLocationId] = { ...editDraft };
+    saveState();
+    closeModal();
+    renderBoard();
+  });
+}
+
+// ============================================
+// LOAD PICKER MODAL (from board)
+// ============================================
+function openPickerModal() {
+  const units = getAllUnits().filter(u => u.lu);
+  const inLoad = new Set(state.loadOrder.map(x => x.lu));
+
+  const content = `
+    <div class="modal-title">Add to Load Order</div>
+    <div class="modal-heading">From Board</div>
+    ${units.length === 0 ? `
+      <div class="empty-state">No units on the board yet.</div>
+    ` : `
+      <div class="picker-list">
+        ${units.map(u => {
+          const loc = LOCATIONS.find(l => l.id === u.location);
+          const already = inLoad.has(u.lu);
+          return `
+            <button class="picker-item ${already ? 'disabled' : ''}" data-lu="${escapeHtml(u.lu)}" data-loc="${escapeHtml(loc.label)}" data-type="${u.type}">
+              <span class="picker-lu">${escapeHtml(u.lu)}</span>
+              <span class="badge type-${u.type.toLowerCase()}">${u.type}</span>
+              <span class="picker-where">${escapeHtml(loc.label)}${already ? ' • Added' : ''}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `}
+    <div class="modal-actions solo">
+      <button class="btn ghost" id="pickCancel">Cancel</button>
+    </div>
+  `;
+
+  openModal(content);
+  document.getElementById('pickCancel').addEventListener('click', closeModal);
+  document.querySelectorAll('.picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.loadOrder.push({
+        id: uid(),
+        lu: btn.dataset.lu,
+        note: `${btn.dataset.type} • ${btn.dataset.loc}`,
+      });
+      saveState();
+      closeModal();
+      renderLoad();
+    });
+  });
+}
+
+// ============================================
+// CUSTOM LOAD ENTRY MODAL
+// ============================================
+function openCustomLoadModal() {
+  const content = `
+    <div class="modal-title">Add to Load Order</div>
+    <div class="modal-heading">Custom Entry</div>
+    <div class="field">
+      <div class="field-label">LU or Label</div>
+      <input class="input" id="customLu" type="text" placeholder="e.g. 1225" autocomplete="off">
+    </div>
+    <div class="field">
+      <div class="field-label">Note (optional)</div>
+      <input class="input" id="customNote" type="text" placeholder="e.g. expected tomorrow" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="customCancel">Cancel</button>
+      <button class="btn primary" id="customAdd">Add</button>
+    </div>
+  `;
+  openModal(content);
+  const luInput = document.getElementById('customLu');
+  luInput.focus();
+  document.getElementById('customCancel').addEventListener('click', closeModal);
+  document.getElementById('customAdd').addEventListener('click', () => {
+    const lu = luInput.value.trim();
+    if (!lu) { alert('Enter an LU or label'); return; }
+    const note = document.getElementById('customNote').value.trim();
+    state.loadOrder.push({ id: uid(), lu, note });
+    saveState();
+    closeModal();
+    renderLoad();
+  });
+}
+
+// ============================================
+// TABS + RULES TOGGLE
+// ============================================
+function setTab(tab) {
+  state.activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  document.getElementById('boardView').style.display = tab === 'board' ? '' : 'none';
+  document.getElementById('loadView').style.display = tab === 'load' ? '' : 'none';
+  if (tab === 'board') renderBoard();
+  else renderLoad();
+}
+
+function refreshRulesToggle() {
+  const t = document.getElementById('rulesToggle');
+  t.classList.toggle('loose', !state.strict);
+  document.getElementById('rulesLabel').textContent = state.strict ? 'Strict' : 'Loose';
+}
+
+// ============================================
+// INIT
+// ============================================
+loadState();
+renderBoard();
+refreshRulesToggle();
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setTab(t.dataset.tab));
+});
+
+document.getElementById('rulesToggle').addEventListener('click', () => {
+  if (state.strict) {
+    if (!confirm('Turn OFF strict rules?\n\nYou\'ll be able to place anything anywhere with no validation.')) return;
+  }
+  state.strict = !state.strict;
+  saveState();
+  refreshRulesToggle();
+  renderBoard();
+});
+
+// Prevent zoom on double-tap
+let lastTouch = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouch <= 300) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });
+</script>
+
+</body>
+</html>
