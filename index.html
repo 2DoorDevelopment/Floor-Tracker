@@ -802,6 +802,47 @@ opacity: 1;
 .map-spot.filled.fd .map-spot-type { color: var(--fd); }
 .map-spot.filled.pax .map-spot-type { color: var(--pax); }
 .map-spot.filled.complete .map-spot-type { color: var(--complete); }
+
+/* DRAG TO MOVE */
+.drag-ghost {
+  position: fixed;
+  z-index: 200;
+  pointer-events: none;
+  background: var(--panel-2);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  transform: rotate(2deg);
+  min-width: 70px;
+}
+.drag-ghost-lu {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.drag-ghost-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+.spot.dragging, .map-spot.dragging { opacity: 0.35; }
+.spot.drop-target, .map-spot.drop-target {
+  border-color: var(--accent) !important;
+  border-style: solid !important;
+}
+.spot.drop-hover, .map-spot.drop-hover {
+  border-color: var(--accent) !important;
+  border-style: solid !important;
+  border-width: 2px !important;
+  background: rgba(0,217,255,0.12) !important;
+}
+.spot.drop-blocked, .map-spot.drop-blocked { opacity: 0.25; }
 </style>
 
 </head>
@@ -1011,7 +1052,7 @@ function renderBoard() {
 
   root.querySelectorAll('.spot').forEach(el => {
     el.addEventListener('click', e => {
-      // If a button inside the spot was tapped (e.g. dest-move), don't trigger spot edit
+      if (suppressNextClick) return;
       if (e.target.closest('.spot-action')) return;
       openSpotModal(el.dataset.location);
     });
@@ -1280,7 +1321,10 @@ function renderMap() {
   `;
 
   root.querySelectorAll('.map-spot').forEach(el => {
-    el.addEventListener('click', () => openSpotModal(el.dataset.location));
+    el.addEventListener('click', () => {
+      if (suppressNextClick) return;
+      openSpotModal(el.dataset.location);
+    });
   });
 }
 
@@ -1884,6 +1928,126 @@ function performUndo() {
 }
 
 // ============================================
+// DRAG TO MOVE
+// ============================================
+let dragState = null;
+let suppressNextClick = false;
+
+function initDrag(e, locId) {
+  const touch = e.touches[0];
+  const unit = getSpot(locId);
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.innerHTML = `
+    <div class="drag-ghost-lu">${escapeHtml(unit.lu)}</div>
+    <div class="drag-ghost-type">${unit.type}</div>
+  `;
+  document.body.appendChild(ghost);
+  dragState = {
+    locId,
+    startX: touch.clientX,
+    startY: touch.clientY,
+    dragging: false,
+    ghostEl: ghost,
+    currentTarget: null,
+  };
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - dragState.startX;
+  const dy = touch.clientY - dragState.startY;
+
+  if (!dragState.dragging) {
+    if (Math.sqrt(dx * dx + dy * dy) < 12) return;
+    dragState.dragging = true;
+    document.querySelectorAll(`[data-location="${dragState.locId}"]`).forEach(el => el.classList.add('dragging'));
+    const unit = getSpot(dragState.locId);
+    LOCATIONS.forEach(loc => {
+      if (loc.id === dragState.locId) return;
+      const valid = !state.strict || loc.accepts.includes(unit.type);
+      document.querySelectorAll(`[data-location="${loc.id}"]`).forEach(el => {
+        el.classList.add(valid ? 'drop-target' : 'drop-blocked');
+      });
+    });
+  }
+
+  e.preventDefault();
+
+  dragState.ghostEl.style.left = (touch.clientX - 44) + 'px';
+  dragState.ghostEl.style.top = (touch.clientY - 44) + 'px';
+  dragState.ghostEl.style.display = 'block';
+
+  dragState.ghostEl.style.visibility = 'hidden';
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  dragState.ghostEl.style.visibility = '';
+
+  const targetEl = el && el.closest('[data-location]');
+  const targetId = targetEl && targetEl.dataset.location;
+  const newTarget = (targetId && targetId !== dragState.locId) ? targetId : null;
+
+  if (newTarget !== dragState.currentTarget) {
+    if (dragState.currentTarget) {
+      document.querySelectorAll(`[data-location="${dragState.currentTarget}"]`).forEach(el => el.classList.remove('drop-hover'));
+    }
+    dragState.currentTarget = newTarget;
+    if (newTarget) {
+      document.querySelectorAll(`[data-location="${newTarget}"]`).forEach(el => el.classList.add('drop-hover'));
+    }
+  }
+}
+
+function onDragEnd() {
+  if (!dragState) return;
+  const { locId, dragging, currentTarget, ghostEl } = dragState;
+
+  ghostEl.remove();
+  document.querySelectorAll('.dragging, .drop-target, .drop-blocked, .drop-hover').forEach(el => {
+    el.classList.remove('dragging', 'drop-target', 'drop-blocked', 'drop-hover');
+  });
+  dragState = null;
+
+  if (!dragging) return;
+
+  suppressNextClick = true;
+  setTimeout(() => { suppressNextClick = false; }, 100);
+
+  if (!currentTarget) return;
+
+  const unit = getSpot(locId);
+  if (!unit) return;
+  const targetLoc = LOCATIONS.find(l => l.id === currentTarget);
+  const occupant = getSpot(currentTarget);
+
+  const moved = { ...unit };
+  if (targetLoc.id === 'max_move') {
+    moved.type = 'COMPLETE'; moved.unitReady = true; moved.tool = '2ME'; moved.toolReady = true;
+  }
+  if (targetLoc.group === 'PAX Pogos' && moved.type === 'COMPLETE') {
+    moved.unitReady = true; moved.tool = '2ME'; moved.toolReady = true;
+  }
+  if (targetLoc.group === 'Complete Storage' && moved.tool === '2ME') {
+    moved.tool = 'none'; moved.toolReady = false;
+  }
+
+  const v = validateUnit(moved, currentTarget);
+  if (!v.ok) {
+    if (!confirm(`${v.reason}.\n\nMove anyway?`)) return;
+  }
+  if (occupant) {
+    if (!confirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`)) return;
+  }
+
+  pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
+  delete state.spots[locId];
+  state.spots[currentTarget] = moved;
+  saveState();
+  renderBoard();
+  if (state.activeTab === 'map') renderMap();
+}
+
+// ============================================
 // INIT
 // ============================================
 loadState();
@@ -1914,6 +2078,16 @@ document.getElementById('quickBtn').addEventListener('click', () => {
 });
 
 document.getElementById('undoBtn').addEventListener('click', performUndo);
+
+document.addEventListener('touchstart', e => {
+  const spotEl = e.target.closest('[data-location]');
+  if (!spotEl || e.target.closest('.spot-action')) return;
+  if (!getSpot(spotEl.dataset.location)) return;
+  initDrag(e, spotEl.dataset.location);
+}, { passive: true });
+document.addEventListener('touchmove', onDragMove, { passive: false });
+document.addEventListener('touchend', onDragEnd);
+document.addEventListener('touchcancel', onDragEnd);
 
 // Prevent zoom on double-tap
 let lastTouch = 0;
