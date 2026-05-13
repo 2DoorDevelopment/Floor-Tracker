@@ -695,6 +695,113 @@ font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 color: var(–warn);
 opacity: 1;
 }
+
+/* MAP VIEW */
+.floor-building {
+  border: 1.5px solid var(--border-bright);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+  margin-bottom: 16px;
+}
+.floor-top {
+  display: flex;
+  padding: 10px;
+  gap: 8px;
+  min-height: 80px;
+  align-items: flex-start;
+}
+.floor-top-empty { flex: 1; }
+.floor-storage-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.floor-wall-bar {
+  height: 2px;
+  background: var(--border-bright);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.floor-wall-label {
+  position: absolute;
+  background: var(--panel);
+  padding: 0 8px;
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.floor-main {
+  display: flex;
+  padding: 10px;
+  gap: 8px;
+  align-items: flex-start;
+}
+.floor-left-col, .floor-right-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.floor-bottom-row { padding: 0 10px 10px; }
+.floor-bottom-inner { display: flex; gap: 8px; }
+.floor-bottom-inner .floor-half { flex: 1; }
+.map-spot {
+  background: rgba(255,255,255,0.015);
+  border: 1px dashed var(--border-bright);
+  border-radius: 7px;
+  padding: 7px 9px;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  gap: 1px;
+}
+.map-spot:active { background: var(--panel-2); }
+.map-spot.filled { border-style: solid; background: var(--panel); }
+.map-spot.filled.fd { border-color: var(--fd); border-left-width: 3px; padding-left: 7px; }
+.map-spot.filled.pax { border-color: var(--pax); border-left-width: 3px; padding-left: 7px; }
+.map-spot.filled.complete { border-color: var(--complete); border-left-width: 3px; padding-left: 7px; }
+.map-spot.tall { min-height: 90px; }
+.map-spot.overflow { opacity: 0.72; }
+.map-spot-name {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+.map-spot.empty .map-spot-name {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+.map-spot-lu {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+.map-spot-type {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.map-spot.filled.fd .map-spot-type { color: var(--fd); }
+.map-spot.filled.pax .map-spot-type { color: var(--pax); }
+.map-spot.filled.complete .map-spot-type { color: var(--complete); }
 </style>
 
 </head>
@@ -718,12 +825,14 @@ opacity: 1;
 <div class="tabs">
   <button class="tab active" data-tab="board">Board</button>
   <button class="tab" data-tab="load">Load Order</button>
+  <button class="tab" data-tab="map">Map</button>
 </div>
 
 <main>
   <div class="counters" id="counters"></div>
   <div id="boardView"></div>
   <div id="loadView" style="display:none"></div>
+  <div id="mapView" style="display:none"></div>
 </main>
 
 <div id="modalRoot"></div>
@@ -1097,6 +1206,81 @@ function renderLoad() {
       saveState();
       renderLoad();
     }
+  });
+}
+
+// ============================================
+// RENDER: MAP
+// ============================================
+function renderMap() {
+  const root = document.getElementById('mapView');
+
+  function mapSpotHtml(locId, extraClass) {
+    const loc = LOCATIONS.find(l => l.id === locId);
+    const unit = getSpot(locId);
+    const isOverflow = locId.startsWith('fd_overflow_');
+    const cls = [
+      isOverflow ? 'overflow' : '',
+      extraClass || '',
+    ].filter(Boolean).join(' ');
+
+    if (!unit) {
+      return `
+        <button class="map-spot empty${cls ? ' ' + cls : ''}" data-location="${locId}">
+          <div class="map-spot-name">${escapeHtml(loc.label)}</div>
+        </button>
+      `;
+    }
+    const typeClass = unit.type.toLowerCase();
+    return `
+      <button class="map-spot filled ${typeClass}${cls ? ' ' + cls : ''}" data-location="${locId}">
+        <div class="map-spot-name">${escapeHtml(loc.label)}</div>
+        <div class="map-spot-lu">${escapeHtml(unit.lu)}</div>
+        <div class="map-spot-type">${unit.type}</div>
+      </button>
+    `;
+  }
+
+  root.innerHTML = `
+    <div class="floor-building">
+      <div class="floor-top">
+        <div class="floor-top-empty"></div>
+        <div class="floor-storage-col">
+          ${mapSpotHtml('storage_1')}
+          ${mapSpotHtml('storage_2')}
+        </div>
+      </div>
+      <div class="floor-wall-bar"><span class="floor-wall-label">Wall</span></div>
+      <div class="floor-main">
+        <div class="floor-left-col">
+          ${mapSpotHtml('pax_pogo_1')}
+          ${mapSpotHtml('safran_1')}
+          ${mapSpotHtml('safran_2')}
+          ${mapSpotHtml('safran_3')}
+          ${mapSpotHtml('safran_4')}
+        </div>
+        <div class="floor-right-col">
+          ${mapSpotHtml('pax_pogo_2', 'tall')}
+          ${mapSpotHtml('fd_1')}
+          ${mapSpotHtml('fd_2')}
+          ${mapSpotHtml('fd_3')}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_1') : ''}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_2') : ''}
+        </div>
+      </div>
+      <div class="floor-bottom-row">
+        <div class="floor-bottom-inner">
+          <div class="floor-half"></div>
+          <div class="floor-half">
+            ${mapSpotHtml('max_move', 'tall')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll('.map-spot').forEach(el => {
+    el.addEventListener('click', () => openSpotModal(el.dataset.location));
   });
 }
 
@@ -1647,8 +1831,10 @@ function setTab(tab) {
   });
   document.getElementById('boardView').style.display = tab === 'board' ? '' : 'none';
   document.getElementById('loadView').style.display = tab === 'load' ? '' : 'none';
+  document.getElementById('mapView').style.display = tab === 'map' ? '' : 'none';
   if (tab === 'board') renderBoard();
-  else renderLoad();
+  else if (tab === 'load') renderLoad();
+  else if (tab === 'map') renderMap();
 }
 
 function refreshRulesToggle() {
@@ -1693,6 +1879,7 @@ function performUndo() {
   saveState();
   refreshUndoButton();
   if (state.activeTab === 'board') renderBoard();
+  else if (state.activeTab === 'map') renderMap();
   else renderLoad();
 }
 
