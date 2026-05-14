@@ -903,11 +903,11 @@ opacity: 1;
 // CONFIG
 // ============================================
 const LOCATIONS = [
-  // Safran Pogos
-  { id: 'safran_1', label: 'Safran 1', group: 'Safran Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_2', label: 'Safran 2', group: 'Safran Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_3', label: 'Safran 3', group: 'Safran Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_4', label: 'Safran 4', group: 'Safran Pogos', accepts: ['COMPLETE'] },
+  // S Pogos
+  { id: 'safran_1', label: 'Safran 1', group: 'S Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_2', label: 'Safran 2', group: 'S Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_3', label: 'Safran 3', group: 'S Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_4', label: 'Safran 4', group: 'S Pogos', accepts: ['COMPLETE'] },
   // Max Move
   { id: 'max_move', label: 'Max Move', group: 'Max Move', accepts: ['COMPLETE'] },
   // Complete Storage
@@ -924,8 +924,18 @@ const LOCATIONS = [
   { id: 'pax_pogo_2', label: 'PAX Pogo 2', group: 'PAX Pogos', accepts: ['PAX', 'COMPLETE'] },
 ];
 
-const GROUP_ORDER = ['Safran Pogos', 'Max Move', 'FD Spots', 'PAX Pogos', 'Complete Storage'];
-const DESTINATIONS = ['None', 'Safran Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'Complete Storage', 'LOAD'];
+const GROUP_ORDER = ['S Pogos', 'Max Move', 'FD Spots', 'PAX Pogos', 'Complete Storage'];
+const DESTINATIONS = ['None', 'S Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'Complete Storage', 'LOAD'];
+
+// Movement rules (strict mode): which groups a unit can be moved TO from a given source group.
+// null = unrestricted. Toggle off strict mode to override.
+const MOVE_RULES = {
+  'S Pogos':          ['Max Move', 'Complete Storage', 'PAX Pogos'],
+  'FD Spots':         ['FD Spots', 'S Pogos'],
+  'Max Move':         ['S Pogos', 'PAX Pogos', 'Complete Storage'],
+  'PAX Pogos':        ['S Pogos', 'PAX Pogos'],
+  'Complete Storage': null,
+};
 
 // ============================================
 // STATE
@@ -1786,11 +1796,14 @@ function openMoveModal(groupFilter) {
 
   // Compute destinations: every other spot that accepts this type (or any spot in Loose mode).
   // If groupFilter is set, restrict to spots in that group only.
+  const allowedGroups = state.strict ? MOVE_RULES[fromLoc.group] : null;
   const destinations = LOCATIONS.filter(l => {
     if (l.id === editLocationId) return false;
     if (groupFilter && l.group !== groupFilter) return false;
     if (!state.strict) return true;
-    return l.accepts.includes(unitType);
+    if (!l.accepts.includes(unitType)) return false;
+    if (allowedGroups && !allowedGroups.includes(l.group)) return false;
+    return true;
   });
 
   // Find which spots are occupied (we'll show them with the LU on them so user can decide).
@@ -2004,11 +2017,14 @@ function onDragMove(e) {
     document.getElementById('trashBtn').style.display = '';
     document.querySelectorAll(`[data-location="${dragState.locId}"]`).forEach(el => el.classList.add('dragging'));
     const unit = getSpot(dragState.locId);
+    const fromLoc = LOCATIONS.find(l => l.id === dragState.locId);
+    const allowedGroups = state.strict ? MOVE_RULES[fromLoc.group] : null;
     LOCATIONS.forEach(loc => {
       if (loc.id === dragState.locId) return;
-      const valid = !state.strict || loc.accepts.includes(unit.type);
+      const typeValid = !state.strict || loc.accepts.includes(unit.type);
+      const moveValid = !allowedGroups || allowedGroups.includes(loc.group);
       document.querySelectorAll(`[data-location="${loc.id}"]`).forEach(el => {
-        el.classList.add(valid ? 'drop-target' : 'drop-blocked');
+        el.classList.add((typeValid && moveValid) ? 'drop-target' : 'drop-blocked');
       });
     });
   }
@@ -2103,6 +2119,11 @@ function onDragEnd() {
   const v = validateUnit(moved, currentTarget);
   if (!v.ok) {
     if (!confirm(`${v.reason}.\n\nMove anyway?`)) return;
+  }
+  const srcLoc = LOCATIONS.find(l => l.id === locId);
+  const dragAllowed = MOVE_RULES[srcLoc.group];
+  if (state.strict && dragAllowed && !dragAllowed.includes(targetLoc.group)) {
+    if (!confirm(`${srcLoc.group} units don't normally go to ${targetLoc.group}.\n\nMove anyway? (Turn off Strict to skip this warning.)`)) return;
   }
   if (occupant) {
     if (!confirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`)) return;
