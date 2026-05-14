@@ -811,6 +811,15 @@ opacity: 1;
 .map-spot.filled.pax .map-spot-type { color: var(--pax); }
 .map-spot.filled.complete .map-spot-type { color: var(--complete); }
 
+/* TRASH DROP */
+.trash-btn { border-color: var(--danger); color: var(--danger); }
+.trash-btn.drag-over {
+  background: var(--danger);
+  color: var(--bg);
+  transform: scale(1.15);
+  transition: transform 0.1s;
+}
+
 /* DRAG TO MOVE */
 .drag-ghost {
   position: fixed;
@@ -861,6 +870,9 @@ opacity: 1;
   <div class="header-controls">
     <button class="hdr-btn undo-btn" id="undoBtn" title="Undo last action" style="display:none">
       <span class="hdr-icon">↶</span>
+    </button>
+    <button class="hdr-btn trash-btn" id="trashBtn" title="Drop here to remove" style="display:none">
+      <span class="hdr-icon">⊗</span>
     </button>
     <button class="hdr-btn quick-btn" id="quickBtn" title="Quick view (LU + location only)">
       <span class="hdr-icon" id="quickIcon">◐</span>
@@ -1975,8 +1987,10 @@ function initDrag(e, locId) {
     dragging: false,
     ghostEl: ghost,
     currentTarget: null,
+    overTrash: false,
   };
 }
+
 
 function onDragMove(e) {
   if (!dragState) return;
@@ -1987,6 +2001,7 @@ function onDragMove(e) {
   if (!dragState.dragging) {
     if (Math.sqrt(dx * dx + dy * dy) < 12) return;
     dragState.dragging = true;
+    document.getElementById('trashBtn').style.display = '';
     document.querySelectorAll(`[data-location="${dragState.locId}"]`).forEach(el => el.classList.add('dragging'));
     const unit = getSpot(dragState.locId);
     LOCATIONS.forEach(loc => {
@@ -2008,6 +2023,21 @@ function onDragMove(e) {
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
   dragState.ghostEl.style.visibility = '';
 
+  const trashBtn = document.getElementById('trashBtn');
+  const overTrash = !!(el && (el === trashBtn || trashBtn.contains(el)));
+  if (overTrash !== dragState.overTrash) {
+    dragState.overTrash = overTrash;
+    trashBtn.classList.toggle('drag-over', overTrash);
+  }
+
+  if (overTrash) {
+    if (dragState.currentTarget) {
+      document.querySelectorAll(`[data-location="${dragState.currentTarget}"]`).forEach(el => el.classList.remove('drop-hover'));
+      dragState.currentTarget = null;
+    }
+    return;
+  }
+
   const targetEl = el && el.closest('[data-location]');
   const targetId = targetEl && targetEl.dataset.location;
   const newTarget = (targetId && targetId !== dragState.locId) ? targetId : null;
@@ -2025,18 +2055,32 @@ function onDragMove(e) {
 
 function onDragEnd() {
   if (!dragState) return;
-  const { locId, dragging, currentTarget, ghostEl } = dragState;
+  const { locId, dragging, currentTarget, overTrash, ghostEl } = dragState;
 
   ghostEl.remove();
   document.querySelectorAll('.dragging, .drop-target, .drop-blocked, .drop-hover').forEach(el => {
     el.classList.remove('dragging', 'drop-target', 'drop-blocked', 'drop-hover');
   });
+  const trashBtn = document.getElementById('trashBtn');
+  trashBtn.classList.remove('drag-over');
+  trashBtn.style.display = 'none';
   dragState = null;
 
   if (!dragging) return;
 
   suppressNextClick = true;
   setTimeout(() => { suppressNextClick = false; }, 100);
+
+  if (overTrash) {
+    const unit = getSpot(locId);
+    if (!unit) return;
+    pushUndo(`Remove LU ${unit.lu}`);
+    delete state.spots[locId];
+    saveState();
+    renderBoard();
+    if (state.activeTab === 'map') renderMap();
+    return;
+  }
 
   if (!currentTarget) return;
 
