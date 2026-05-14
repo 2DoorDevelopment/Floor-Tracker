@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0e14">
+<link rel="manifest" href="./manifest.json">
 <title>Floor Tracker</title>
 <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0e14'/><text x='50' y='62' font-family='monospace' font-size='38' fill='%2300d9ff' text-anchor='middle' font-weight='bold'>FT</text></svg>">
 <style>
@@ -1032,6 +1033,10 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function haptic(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
 // ============================================
 // RENDER: BOARD
 // ============================================
@@ -1115,6 +1120,7 @@ function renderBoard() {
       pushUndo(`Mark LU ${unit.lu} loaded`);
       delete state.spots[btn.dataset.location];
       saveState();
+      haptic([10, 50, 15]);
       renderBoard();
     });
   });
@@ -1453,6 +1459,21 @@ function renderSpotModal() {
     ? validateUnit(d, editLocationId)
     : { ok: true };
 
+  const dupSpot = d.lu.trim()
+    ? Object.entries(state.spots).find(([id, s]) => s.lu === d.lu.trim() && id !== editLocationId)
+    : null;
+  const dupWarning = dupSpot
+    ? `LU ${d.lu} is already at ${LOCATIONS.find(l => l.id === dupSpot[0])?.label}`
+    : null;
+
+  const destConflict = (() => {
+    if (!state.strict || !d.destination || d.destination === 'None' || d.destination === 'LOAD') return null;
+    const fromGroup = LOCATIONS.find(l => l.id === editLocationId)?.group;
+    const allowed = MOVE_RULES[fromGroup];
+    if (allowed && !allowed.includes(d.destination)) return `${fromGroup} units don't normally go to ${d.destination}`;
+    return null;
+  })();
+
   const typeOptions = state.strict ? loc.accepts : ['FD', 'PAX', 'COMPLETE'];
 
   // "Auto-complete" spots: spots where a Complete unit is, by definition, ready and 2ME bolted.
@@ -1488,6 +1509,8 @@ function renderSpotModal() {
     <div class="modal-heading">${existing ? 'Edit Unit' : 'Add Unit'}</div>
 
     ${!validation.ok ? `<div class="warning">${escapeHtml(validation.reason)}</div>` : ''}
+    ${dupWarning ? `<div class="warning">${escapeHtml(dupWarning)}</div>` : ''}
+    ${destConflict ? `<div class="warning">${escapeHtml(destConflict)}</div>` : ''}
 
     <div class="field">
       <div class="field-label">Line Unit (LU)</div>
@@ -1619,6 +1642,8 @@ function renderSpotModal() {
 
   document.getElementById('destSelect').addEventListener('change', e => {
     editDraft.destination = e.target.value;
+    editDraft.lu = document.getElementById('luInput').value;
+    renderSpotModal();
   });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
@@ -1629,6 +1654,7 @@ function renderSpotModal() {
         pushUndo(`Clear ${loc.label}`);
         delete state.spots[editLocationId];
         saveState();
+        haptic([30, 10, 30]);
         closeModal();
         renderBoard();
       }
@@ -1665,6 +1691,11 @@ function renderSpotModal() {
       editDraft.tool = 'none';
       editDraft.toolReady = false;
     }
+    const dup = Object.entries(state.spots).find(([id, s]) => s.lu === editDraft.lu && id !== editLocationId);
+    if (dup) {
+      const dupLoc = LOCATIONS.find(l => l.id === dup[0]);
+      if (!confirm(`LU ${editDraft.lu} is already at ${dupLoc?.label}.\n\nSave anyway?`)) return;
+    }
     const v = validateUnit(editDraft, editLocationId);
     if (!v.ok) {
       if (!confirm(`${v.reason}.\n\nSave anyway? (Turn off Strict mode to skip this warning.)`)) {
@@ -1674,6 +1705,7 @@ function renderSpotModal() {
     pushUndo(existing ? `Edit ${loc.label}` : `Add to ${loc.label}`);
     state.spots[editLocationId] = { ...editDraft };
     saveState();
+    haptic(20);
     closeModal();
     renderBoard();
   });
@@ -1909,6 +1941,7 @@ function openMoveModal(groupFilter) {
       delete state.spots[editLocationId];
       state.spots[targetId] = moved;
       saveState();
+      haptic(20);
       closeModal();
       renderBoard();
     });
@@ -1971,6 +2004,7 @@ function performUndo() {
   state.spots = prev.spots;
   state.loadOrder = prev.loadOrder;
   saveState();
+  haptic(10);
   refreshUndoButton();
   if (state.activeTab === 'board') renderBoard();
   else if (state.activeTab === 'map') renderMap();
@@ -2093,6 +2127,7 @@ function onDragEnd() {
     pushUndo(`Remove LU ${unit.lu}`);
     delete state.spots[locId];
     saveState();
+    haptic([30, 10, 30]);
     renderBoard();
     if (state.activeTab === 'map') renderMap();
     return;
@@ -2133,6 +2168,7 @@ function onDragEnd() {
   delete state.spots[locId];
   state.spots[currentTarget] = moved;
   saveState();
+  haptic(20);
   renderBoard();
   if (state.activeTab === 'map') renderMap();
 }
@@ -2186,6 +2222,10 @@ document.addEventListener('touchend', e => {
   if (now - lastTouch <= 300) e.preventDefault();
   lastTouch = now;
 }, { passive: false });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
 </script>
 
 </body>
