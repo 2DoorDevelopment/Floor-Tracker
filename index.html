@@ -905,10 +905,10 @@ opacity: 1;
 // ============================================
 const LOCATIONS = [
   // S Pogos
-  { id: 'safran_1', label: 'Safran 1', group: 'S Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_2', label: 'Safran 2', group: 'S Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_3', label: 'Safran 3', group: 'S Pogos', accepts: ['COMPLETE'] },
-  { id: 'safran_4', label: 'Safran 4', group: 'S Pogos', accepts: ['COMPLETE'] },
+  { id: 'safran_1', label: 'Safran 1', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
+  { id: 'safran_2', label: 'Safran 2', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
+  { id: 'safran_3', label: 'Safran 3', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
+  { id: 'safran_4', label: 'Safran 4', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
   // Max Move
   { id: 'max_move', label: 'Max Move', group: 'Max Move', accepts: ['COMPLETE'] },
   // Complete Storage
@@ -931,7 +931,7 @@ const DESTINATIONS = ['None', 'S Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'C
 // Movement rules (strict mode): which groups a unit can be moved TO from a given source group.
 // null = unrestricted. Toggle off strict mode to override.
 const MOVE_RULES = {
-  'S Pogos':          ['Max Move', 'Complete Storage', 'PAX Pogos'],
+  'S Pogos':          ['Max Move', 'Complete Storage', 'PAX Pogos', 'FD Spots'],
   'FD Spots':         ['FD Spots', 'S Pogos'],
   'Max Move':         ['S Pogos', 'PAX Pogos', 'Complete Storage'],
   'PAX Pogos':        ['S Pogos', 'PAX Pogos'],
@@ -1797,6 +1797,38 @@ function openCustomLoadModal() {
 }
 
 // ============================================
+// MATING — FD + PAX at S Pogo = COMPLETE
+// ============================================
+function tryMate(sourceId, targetId) {
+  const targetLoc = LOCATIONS.find(l => l.id === targetId);
+  if (targetLoc.group !== 'S Pogos') return false;
+  const mover = getSpot(sourceId);
+  const occupant = getSpot(targetId);
+  if (!mover || !occupant) return false;
+  if (!((mover.type === 'PAX' && occupant.type === 'FD') ||
+        (mover.type === 'FD' && occupant.type === 'PAX'))) return false;
+
+  const fd  = mover.type === 'FD' ? mover : occupant;
+  const pax = mover.type === 'PAX' ? mover : occupant;
+
+  if (!confirm(`Mate FD LU ${fd.lu} + PAX LU ${pax.lu} into a Complete unit?\nComplete will use LU ${fd.lu}.`)) return false;
+
+  pushUndo(`Mate FD ${fd.lu} + PAX ${pax.lu} → Complete`);
+  delete state.spots[sourceId];
+  state.spots[targetId] = {
+    lu: fd.lu,
+    type: 'COMPLETE',
+    tool: 'none',
+    toolReady: false,
+    unitReady: false,
+    destination: fd.destination || 'None',
+  };
+  saveState();
+  haptic([10, 30, 10, 30, 10]);
+  return true;
+}
+
+// ============================================
 // MOVE MODAL — relocate a unit to another spot
 // ============================================
 function openMoveModal(groupFilter) {
@@ -1833,7 +1865,9 @@ function openMoveModal(groupFilter) {
     if (l.id === editLocationId) return false;
     if (groupFilter && l.group !== groupFilter) return false;
     if (!state.strict) return true;
-    if (!l.accepts.includes(unitType)) return false;
+    // PAX moving onto an S Pogo that has an FD = mating (allowed even though PAX not in accepts)
+    const matingTarget = unitType === 'PAX' && l.group === 'S Pogos' && getSpot(l.id)?.type === 'FD';
+    if (!matingTarget && !l.accepts.includes(unitType)) return false;
     if (allowedGroups && !allowedGroups.includes(l.group)) return false;
     return true;
   });
@@ -1929,6 +1963,16 @@ function openMoveModal(groupFilter) {
         if (!confirm(`${v.reason}.\n\nMove anyway? (Turn off Strict mode to skip this warning.)`)) {
           return;
         }
+      }
+
+      // Mating: PAX onto FD (or FD onto PAX) at S Pogo
+      if (occupant && targetLoc.group === 'S Pogos') {
+        if (tryMate(editLocationId, targetId)) {
+          closeModal();
+          renderBoard();
+          return;
+        }
+        return; // user cancelled mating
       }
 
       // Confirm overwrite
@@ -2055,7 +2099,8 @@ function onDragMove(e) {
     const allowedGroups = state.strict ? MOVE_RULES[fromLoc.group] : null;
     LOCATIONS.forEach(loc => {
       if (loc.id === dragState.locId) return;
-      const typeValid = !state.strict || loc.accepts.includes(unit.type);
+      const matingTarget = unit.type === 'PAX' && loc.group === 'S Pogos' && getSpot(loc.id)?.type === 'FD';
+      const typeValid = !state.strict || loc.accepts.includes(unit.type) || matingTarget;
       const moveValid = !allowedGroups || allowedGroups.includes(loc.group);
       document.querySelectorAll(`[data-location="${loc.id}"]`).forEach(el => {
         el.classList.add((typeValid && moveValid) ? 'drop-target' : 'drop-blocked');
@@ -2138,6 +2183,15 @@ function onDragEnd() {
   const unit = getSpot(locId);
   if (!unit) return;
   const targetLoc = LOCATIONS.find(l => l.id === currentTarget);
+
+  // Mating: PAX onto FD (or FD onto PAX) at S Pogo
+  if (targetLoc.group === 'S Pogos' && getSpot(currentTarget)) {
+    if (tryMate(locId, currentTarget)) {
+      renderBoard();
+      if (state.activeTab === 'map') renderMap();
+    }
+    return;
+  }
   const occupant = getSpot(currentTarget);
 
   const moved = { ...unit };
