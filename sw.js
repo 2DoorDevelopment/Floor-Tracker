@@ -1,4 +1,4 @@
-const CACHE = 'floor-tracker-v3';
+const CACHE = 'floor-tracker-v4';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./index.html', './'])));
@@ -17,14 +17,14 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.open(CACHE).then(cache =>
-      cache.match(e.request).then(cached => {
-        const network = fetch(e.request).then(res => {
-          if (res && res.ok) cache.put(e.request, res.clone());
-          return res;
-        }).catch(() => {});
-        return cached || network;
+    fetch(e.request)
+      .then(res => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
       })
-    )
+      .catch(() => caches.match(e.request))
   );
 });
