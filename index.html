@@ -2266,15 +2266,14 @@ document.getElementById('updateBtn').addEventListener('click', () => {
   const btn = document.getElementById('updateBtn');
   btn.disabled = true;
   btn.querySelector('.hdr-icon').textContent = '…';
-  const finish = () => location.reload(true);
-  if ('caches' in window) {
-    caches.keys()
-      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(finish)
-      .catch(finish);
-  } else {
-    finish();
-  }
+  const reload = () => location.reload();
+  const clearCaches = () => 'caches' in window
+    ? caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {})
+    : Promise.resolve();
+  const unregisterSW = () => 'serviceWorker' in navigator
+    ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))).catch(() => {})
+    : Promise.resolve();
+  unregisterSW().then(clearCaches).then(reload).catch(reload);
 });
 
 document.addEventListener('touchstart', e => {
