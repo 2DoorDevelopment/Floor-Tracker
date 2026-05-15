@@ -884,6 +884,9 @@ opacity: 1;
     <button class="hdr-btn update-btn" id="updateBtn" title="Check for updates &amp; reload">
       <span class="hdr-icon">↻</span>
     </button>
+    <button class="hdr-btn" id="snapBtn" title="Share floor positions as image">
+      <span class="hdr-icon">📷</span>
+    </button>
   </div>
 </header>
 
@@ -2275,6 +2278,72 @@ document.getElementById('updateBtn').addEventListener('click', () => {
     : Promise.resolve();
   unregisterSW().then(clearCaches).then(reload).catch(reload);
 });
+
+function takeSnapshot() {
+  const PAD = 20, COL_W = 560, ROW_H = 26, GROUP_GAP = 14;
+  const groups = GROUP_ORDER.map(g => ({
+    name: g,
+    locs: LOCATIONS.filter(l => l.group === g),
+  }));
+  const totalRows = groups.reduce((s, g) => s + g.locs.length, 0);
+  const H = PAD + 50 + groups.length * (ROW_H + GROUP_GAP) + totalRows * ROW_H + PAD;
+  const W = COL_W + PAD * 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const canvas = document.createElement('canvas');
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  ctx.fillStyle = '#0a0e14';
+  ctx.fillRect(0, 0, W, H);
+
+  let y = PAD + 20;
+  ctx.fillStyle = '#00d9ff';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText('Floor Tracker', PAD, y);
+  ctx.fillStyle = '#556677';
+  ctx.font = '13px monospace';
+  ctx.fillText(new Date().toLocaleString(), PAD, y + 20);
+  y += 50;
+
+  for (const { name, locs } of groups) {
+    ctx.fillStyle = '#00d9ff';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(name.toUpperCase(), PAD, y);
+    y += ROW_H;
+    for (const loc of locs) {
+      const spot = getSpot(loc.id);
+      if (spot) {
+        const parts = [spot.lu, spot.type];
+        if (spot.tool && spot.tool !== 'none') parts.push(spot.tool);
+        if (spot.unitReady) parts.push('✓');
+        ctx.fillStyle = '#e0eeff';
+        ctx.font = '13px monospace';
+        ctx.fillText(`  ${loc.label}: ${parts.join(' · ')}`, PAD, y);
+      } else {
+        ctx.fillStyle = '#334455';
+        ctx.font = '13px monospace';
+        ctx.fillText(`  ${loc.label}: —`, PAD, y);
+      }
+      y += ROW_H;
+    }
+    y += GROUP_GAP;
+  }
+
+  canvas.toBlob(blob => {
+    const file = new File([blob], `floor-${Date.now()}.png`, { type: 'image/png' });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Floor Positions' }).catch(() => {});
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = file.name; a.click();
+      URL.revokeObjectURL(url);
+    }
+  }, 'image/png');
+}
+
+document.getElementById('snapBtn').addEventListener('click', takeSnapshot);
 
 document.addEventListener('touchstart', e => {
   const spotEl = e.target.closest('[data-location]');
