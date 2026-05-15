@@ -1165,9 +1165,6 @@ function renderBoard() {
       </section>
     `;
   }
-  if (Object.keys(state.spots).length > 0) {
-    html += `<div style="margin-top:4px;"><button class="btn danger full" id="clearBoardBtn">Clear Board</button></div>`;
-  }
   root.innerHTML = html;
 
   root.querySelectorAll('.spot').forEach(el => {
@@ -1210,15 +1207,6 @@ function renderBoard() {
     });
   });
 
-  document.getElementById('clearBoardBtn')?.addEventListener('click', () => {
-    showConfirm('Clear all units from the board?', () => {
-      pushUndo('Clear board');
-      state.spots = {};
-      saveState();
-      haptic([30, 10, 30]);
-      renderBoard();
-    }, { okLabel: 'Clear All', danger: true });
-  });
 }
 
 function renderSpot(loc) {
@@ -1671,7 +1659,6 @@ function renderSpotModal() {
     if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
   });
   // Auto-focus LU input when adding a new unit
-  if (!existing) setTimeout(() => luInput.focus(), 80);
 
   document.querySelectorAll('[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
