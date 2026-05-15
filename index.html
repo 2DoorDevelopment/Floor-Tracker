@@ -1755,7 +1755,7 @@ function renderSpotModal() {
       return;
     }
     // Apply location rules before saving
-    Object.assign(editDraft, normalizeForLocation({ ...editDraft }, editLocationId));
+    editDraft = normalizeForLocation({ ...editDraft }, editLocationId);
     const dup = Object.entries(state.spots).find(([id, s]) => s.lu === editDraft.lu && id !== editLocationId);
     const v = validateUnit(editDraft, editLocationId);
 
@@ -1859,12 +1859,12 @@ function openCustomLoadModal() {
   luInput.focus();
   document.getElementById('customCancel').addEventListener('click', closeModal);
   document.getElementById('customLu').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('customAdd').click();
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('customAdd').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
   });
   document.getElementById('customNote').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('customAdd').click();
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('customAdd').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
   });
   document.getElementById('customAdd').addEventListener('click', () => {
     const lu = luInput.value.trim();
@@ -2320,7 +2320,7 @@ document.querySelectorAll('.tab').forEach(t => {
 
 document.getElementById('rulesToggle').addEventListener('click', () => {
   if (state.strict) {
-    showConfirm("Turn OFF strict rules?\n\nYou'll be able to place anything anywhere with no validation.", () => {
+    showConfirm('Turn OFF strict rules?\n\nYou\'ll be able to place anything anywhere with no validation.', () => {
       state.strict = false;
       saveState();
       refreshRulesToggle();
