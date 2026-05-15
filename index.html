@@ -881,6 +881,9 @@ opacity: 1;
     <button class="hdr-btn rules-btn" id="rulesToggle" title="Strict / Loose rules">
       <span class="hdr-icon" id="rulesLabel">S</span>
     </button>
+    <button class="hdr-btn update-btn" id="updateBtn" title="Check for updates &amp; reload">
+      <span class="hdr-icon">↻</span>
+    </button>
   </div>
 </header>
 
@@ -2258,6 +2261,21 @@ document.getElementById('quickBtn').addEventListener('click', () => {
 });
 
 document.getElementById('undoBtn').addEventListener('click', performUndo);
+
+document.getElementById('updateBtn').addEventListener('click', () => {
+  const btn = document.getElementById('updateBtn');
+  btn.disabled = true;
+  btn.querySelector('.hdr-icon').textContent = '…';
+  const finish = () => location.reload(true);
+  if ('caches' in window) {
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(finish)
+      .catch(finish);
+  } else {
+    finish();
+  }
+});
 
 document.addEventListener('touchstart', e => {
   const spotEl = e.target.closest('[data-location]');
