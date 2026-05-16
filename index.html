@@ -128,7 +128,7 @@ main { padding: 12px 10px 16px; max-width: 700px; margin: 0 auto; }
 /* COUNTERS STRIP */
 .counters {
 display: grid;
-grid-template-columns: repeat(5, 1fr);
+grid-template-columns: repeat(6, 1fr);
 gap: 4px;
 background: var(--panel);
 border: 1px solid var(--border);
@@ -143,6 +143,8 @@ align-items: center;
 justify-content: center;
 padding: 2px;
 gap: 2px;
+min-width: 0;
+overflow: hidden;
 }
 .counter-label {
 font-size: 9px;
@@ -153,8 +155,8 @@ color: var(--text-dim);
 line-height: 1;
 }
 .counter-value {
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
-font-size: 15px;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
+font-size: 14px;
 font-weight: 700;
 color: var(--text);
 line-height: 1.1;
@@ -162,6 +164,7 @@ line-height: 1.1;
 .counter.fd .counter-value { color: var(--fd); }
 .counter.pax .counter-value { color: var(--pax); }
 .counter.complete .counter-value { color: var(--complete); }
+.counter.ready .counter-value { color: var(--good); }
 .counter.tool .counter-value { color: var(--warn); }
 
 /* GROUPS */
@@ -861,6 +864,35 @@ opacity: 1;
   background: rgba(0,217,255,0.12) !important;
 }
 .spot.drop-blocked, .map-spot.drop-blocked { opacity: 0.25; }
+
+/* CONFIRM OVERLAY */
+.confirm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fade-in 0.12s ease;
+}
+.confirm-box {
+  background: var(--panel-2);
+  border: 1px solid var(--border-bright);
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 320px;
+  width: 100%;
+}
+.confirm-msg {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.confirm-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 </style>
 
 </head>
@@ -1043,22 +1075,66 @@ function haptic(pattern) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
+// Apply location-based normalization rules to a unit object.
+// Returns a new object — does not mutate the input.
+function normalizeForLocation(unit, locationId) {
+  const loc = LOCATIONS.find(l => l.id === locationId);
+  if (!loc) return unit;
+  const u = { ...unit };
+  if (loc.id === 'max_move') {
+    u.type = 'COMPLETE'; u.unitReady = true; u.tool = '2ME'; u.toolReady = true;
+  } else if (loc.group === 'PAX Pogos' && u.type === 'COMPLETE') {
+    u.unitReady = true; u.tool = '2ME'; u.toolReady = true;
+  } else if (loc.group === 'Complete Storage' && u.tool === '2ME') {
+    u.tool = 'none'; u.toolReady = false;
+  }
+  return u;
+}
+
+// Show a styled in-app confirmation dialog instead of the native confirm().
+function showConfirm(message, onOk, opts = {}) {
+  const { okLabel = 'OK', cancelLabel = 'Cancel', danger = false } = opts;
+  const el = document.createElement('div');
+  el.className = 'confirm-overlay';
+  el.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-msg">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
+      <div class="confirm-btns">
+        <button class="btn ghost confirm-cancel">${escapeHtml(cancelLabel)}</button>
+        <button class="btn ${danger ? 'danger' : 'primary'} confirm-ok">${escapeHtml(okLabel)}</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  el.querySelector('.confirm-cancel').addEventListener('click', () => el.remove());
+  el.querySelector('.confirm-ok').addEventListener('click', () => { el.remove(); onOk(); });
+}
+
 // ============================================
 // RENDER: BOARD
 // ============================================
 function renderCounters() {
   const root = document.getElementById('counters');
   const units = getAllUnits();
-  const fdCount = units.filter(u => u.type === 'FD').length;
-  const paxCount = units.filter(u => u.type === 'PAX').length;
-  const completeCount = units.filter(u => u.type === 'COMPLETE').length;
-  // Tool counts: 1MEs and 2MEs currently deployed across the board
-  const oneMe = units.filter(u => u.tool === '1ME').length;
-  const twoMe = units.filter(u => u.tool === '2ME').length;
+  let fdCount = 0, paxCount = 0, completeCount = 0, readyCount = 0, oneMe = 0, twoMe = 0;
+  for (const u of units) {
+    if (u.type === 'FD') fdCount++;
+    else if (u.type === 'PAX') paxCount++;
+    else if (u.type === 'COMPLETE') {
+      completeCount++;
+      // Auto-complete spots (Max Move, PAX Pogo with Complete) are always considered ready
+      const loc = LOCATIONS.find(l => l.id === u.location);
+      const isAutoComplete = loc && (loc.id === 'max_move' || (loc.group === 'PAX Pogos'));
+      if (isAutoComplete || u.unitReady) readyCount++;
+    }
+    if (u.tool === '1ME') oneMe++;
+    else if (u.tool === '2ME') twoMe++;
+  }
   root.innerHTML = `
     <div class="counter fd"><span class="counter-label">FD</span><span class="counter-value">${fdCount}</span></div>
     <div class="counter pax"><span class="counter-label">PAX</span><span class="counter-value">${paxCount}</span></div>
-    <div class="counter complete"><span class="counter-label">Complete</span><span class="counter-value">${completeCount}</span></div>
+    <div class="counter complete"><span class="counter-label">CMPL</span><span class="counter-value">${completeCount}</span></div>
+    <div class="counter ready"><span class="counter-label">RDY</span><span class="counter-value">${readyCount}</span></div>
     <div class="counter tool"><span class="counter-label">1ME</span><span class="counter-value">${oneMe}</span></div>
     <div class="counter tool"><span class="counter-label">2ME</span><span class="counter-value">${twoMe}</span></div>
   `;
@@ -1130,6 +1206,7 @@ function renderBoard() {
       renderBoard();
     });
   });
+
 }
 
 function renderSpot(loc) {
@@ -1300,12 +1377,12 @@ function renderLoad() {
   document.getElementById('addFromBoard')?.addEventListener('click', openPickerModal);
   document.getElementById('addCustom')?.addEventListener('click', openCustomLoadModal);
   document.getElementById('clearLoad')?.addEventListener('click', () => {
-    if (confirm('Clear the entire load order?')) {
+    showConfirm('Clear the entire load order?', () => {
       pushUndo('Clear load order');
       state.loadOrder = [];
       saveState();
       renderLoad();
-    }
+    }, { okLabel: 'Clear All', danger: true });
   });
 }
 
@@ -1364,8 +1441,8 @@ function renderMap() {
           ${mapSpotHtml('fd_1')}
           ${mapSpotHtml('fd_2')}
           ${mapSpotHtml('fd_3')}
-          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_1') : ''}
-          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) ? mapSpotHtml('fd_overflow_2') : ''}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) || getSpot('fd_overflow_1') ? mapSpotHtml('fd_overflow_1') : ''}
+          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) || getSpot('fd_overflow_2') ? mapSpotHtml('fd_overflow_2') : ''}
         </div>
       </div>
       <div class="floor-bottom-row">
@@ -1405,6 +1482,13 @@ function openModal(content) {
     </div>
   `;
   document.getElementById('modalBackdrop').addEventListener('click', closeModal);
+  // Swipe the handle bar downward to dismiss
+  const handle = root.querySelector('.modal-handle');
+  let swipeStartY = 0;
+  handle.addEventListener('touchstart', e => { swipeStartY = e.touches[0].clientY; }, { passive: true });
+  handle.addEventListener('touchend', e => {
+    if (e.changedTouches[0].clientY - swipeStartY > 40) closeModal();
+  }, { passive: true });
 }
 
 // ============================================
@@ -1419,38 +1503,16 @@ function openSpotModal(locationId) {
   const existing = getSpot(locationId);
 
   if (existing) {
-    editDraft = { ...existing };
-    // Max Move always = Complete, Ready, 2ME bolted — normalize on open
-    if (locationId === 'max_move') {
-      editDraft.type = 'COMPLETE';
-      editDraft.unitReady = true;
-      editDraft.tool = '2ME';
-      editDraft.toolReady = true;
-    }
-    // PAX Pogo + Complete = Ready + 2ME bolted (implied)
-    if (loc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
-      editDraft.unitReady = true;
-      editDraft.tool = '2ME';
-      editDraft.toolReady = true;
-    }
+    editDraft = normalizeForLocation({ ...existing }, locationId);
   } else {
-    // Default type based on what the spot accepts
-    const defaultType = loc.accepts[0];
-    editDraft = {
+    editDraft = normalizeForLocation({
       lu: '',
-      type: defaultType,
+      type: loc.accepts[0],
       tool: 'none',
       toolReady: false,
       unitReady: false,
       destination: 'None',
-    };
-    // Max Move is always Complete + Ready + 2ME bolted from the moment a unit lands
-    if (locationId === 'max_move') {
-      editDraft.type = 'COMPLETE';
-      editDraft.unitReady = true;
-      editDraft.tool = '2ME';
-      editDraft.toolReady = true;
-    }
+    }, locationId);
   }
 
   renderSpotModal();
@@ -1592,6 +1654,11 @@ function renderSpotModal() {
   // Wire events
   const luInput = document.getElementById('luInput');
   luInput.addEventListener('input', e => { editDraft.lu = e.target.value; });
+  luInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('saveBtn').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+  });
+  // Auto-focus LU input when adding a new unit
 
   document.querySelectorAll('[data-type]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1609,12 +1676,8 @@ function renderSpotModal() {
         (editDraft.type === 'PAX' && editDraft.tool === '1ME') ||
         (editDraft.type === 'COMPLETE' && editDraft.tool === '2ME');
       if (!stillRelevant) editDraft.toolReady = false;
-      // PAX Pogo with Complete = implied 2ME bolted + Ready
-      if (loc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
-        editDraft.tool = '2ME';
-        editDraft.toolReady = true;
-        editDraft.unitReady = true;
-      }
+      // Apply location-based rules (PAX Pogo + Complete, max_move, etc.)
+      editDraft = normalizeForLocation({ ...editDraft }, editLocationId);
       // Persist current LU input value
       editDraft.lu = document.getElementById('luInput').value;
       renderSpotModal();
@@ -1656,14 +1719,14 @@ function renderSpotModal() {
 
   if (existing) {
     document.getElementById('clearBtn').addEventListener('click', () => {
-      if (confirm(`Clear ${loc.label}?`)) {
+      showConfirm(`Clear ${loc.label}?`, () => {
         pushUndo(`Clear ${loc.label}`);
         delete state.spots[editLocationId];
         saveState();
         haptic([30, 10, 30]);
         closeModal();
         renderBoard();
-      }
+      }, { okLabel: 'Clear', danger: true });
     });
     document.getElementById('moveBtn').addEventListener('click', () => {
       // Persist any in-progress edits before moving
@@ -1678,42 +1741,34 @@ function renderSpotModal() {
       alert('Enter an LU number');
       return;
     }
-    const targetLoc = LOCATIONS.find(l => l.id === editLocationId);
-    // Max Move always: Complete + Ready + 2ME bolted.
-    if (targetLoc && targetLoc.id === 'max_move') {
-      editDraft.type = 'COMPLETE';
-      editDraft.unitReady = true;
-      editDraft.tool = '2ME';
-      editDraft.toolReady = true;
-    }
-    // PAX Pogo holding a Complete unit: Ready + 2ME bolted are implied.
-    if (targetLoc && targetLoc.group === 'PAX Pogos' && editDraft.type === 'COMPLETE') {
-      editDraft.unitReady = true;
-      editDraft.tool = '2ME';
-      editDraft.toolReady = true;
-    }
-    // Auto-strip 2ME when placing into Complete Storage
-    if (targetLoc && targetLoc.group === 'Complete Storage' && editDraft.tool === '2ME') {
-      editDraft.tool = 'none';
-      editDraft.toolReady = false;
-    }
+    // Apply location rules before saving
+    editDraft = normalizeForLocation({ ...editDraft }, editLocationId);
     const dup = Object.entries(state.spots).find(([id, s]) => s.lu === editDraft.lu && id !== editLocationId);
-    if (dup) {
-      const dupLoc = LOCATIONS.find(l => l.id === dup[0]);
-      if (!confirm(`LU ${editDraft.lu} is already at ${dupLoc?.label}.\n\nSave anyway?`)) return;
-    }
     const v = validateUnit(editDraft, editLocationId);
-    if (!v.ok) {
-      if (!confirm(`${v.reason}.\n\nSave anyway? (Turn off Strict mode to skip this warning.)`)) {
+
+    const doSave = () => {
+      pushUndo(existing ? `Edit ${loc.label}` : `Add to ${loc.label}`);
+      state.spots[editLocationId] = { ...editDraft };
+      saveState();
+      haptic(20);
+      closeModal();
+      renderBoard();
+    };
+    const checkValidation = () => {
+      if (!v.ok) {
+        showConfirm(`${v.reason}.\n\nSave anyway? (Turn off Strict mode to skip this warning.)`, doSave,
+          { okLabel: 'Save Anyway', danger: true });
         return;
       }
+      doSave();
+    };
+    if (dup) {
+      const dupLoc = LOCATIONS.find(l => l.id === dup[0]);
+      showConfirm(`LU ${editDraft.lu} is already at ${dupLoc?.label}.\n\nSave anyway?`, checkValidation,
+        { okLabel: 'Save Anyway' });
+      return;
     }
-    pushUndo(existing ? `Edit ${loc.label}` : `Add to ${loc.label}`);
-    state.spots[editLocationId] = { ...editDraft };
-    saveState();
-    haptic(20);
-    closeModal();
-    renderBoard();
+    checkValidation();
   });
 }
 
@@ -1790,6 +1845,14 @@ function openCustomLoadModal() {
   const luInput = document.getElementById('customLu');
   luInput.focus();
   document.getElementById('customCancel').addEventListener('click', closeModal);
+  document.getElementById('customLu').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('customAdd').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+  });
+  document.getElementById('customNote').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('customAdd').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+  });
   document.getElementById('customAdd').addEventListener('click', () => {
     const lu = luInput.value.trim();
     if (!lu) { alert('Enter an LU or label'); return; }
@@ -1805,33 +1868,33 @@ function openCustomLoadModal() {
 // ============================================
 // MATING — FD + PAX at S Pogo = COMPLETE
 // ============================================
-function tryMate(sourceId, targetId) {
+function tryMate(sourceId, targetId, onSuccess) {
   const targetLoc = LOCATIONS.find(l => l.id === targetId);
-  if (targetLoc.group !== 'S Pogos') return false;
+  if (targetLoc.group !== 'S Pogos') return;
   const mover = getSpot(sourceId);
   const occupant = getSpot(targetId);
-  if (!mover || !occupant) return false;
+  if (!mover || !occupant) return;
   if (!((mover.type === 'PAX' && occupant.type === 'FD') ||
-        (mover.type === 'FD' && occupant.type === 'PAX'))) return false;
+        (mover.type === 'FD' && occupant.type === 'PAX'))) return;
 
   const fd  = mover.type === 'FD' ? mover : occupant;
   const pax = mover.type === 'PAX' ? mover : occupant;
 
-  if (!confirm(`Mate FD LU ${fd.lu} + PAX LU ${pax.lu} into a Complete unit?\nComplete will use LU ${fd.lu}.`)) return false;
-
-  pushUndo(`Mate FD ${fd.lu} + PAX ${pax.lu} → Complete`);
-  delete state.spots[sourceId];
-  state.spots[targetId] = {
-    lu: fd.lu,
-    type: 'COMPLETE',
-    tool: 'none',
-    toolReady: false,
-    unitReady: false,
-    destination: fd.destination || 'None',
-  };
-  saveState();
-  haptic([10, 30, 10, 30, 10]);
-  return true;
+  showConfirm(`Mate FD LU ${fd.lu} + PAX LU ${pax.lu} into a Complete unit?\nComplete will use LU ${fd.lu}.`, () => {
+    pushUndo(`Mate FD ${fd.lu} + PAX ${pax.lu} → Complete`);
+    delete state.spots[sourceId];
+    state.spots[targetId] = {
+      lu: fd.lu,
+      type: 'COMPLETE',
+      tool: 'none',
+      toolReady: false,
+      unitReady: false,
+      destination: fd.destination || 'None',
+    };
+    saveState();
+    haptic([10, 30, 10, 30, 10]);
+    onSuccess();
+  }, { okLabel: 'Mate' });
 }
 
 // ============================================
@@ -1946,54 +2009,43 @@ function openMoveModal(groupFilter) {
       const occupant = occupiedMap[targetId];
 
       // Build the unit object we'll place at the target (apply normalization rules)
-      const moved = { ...editDraft };
-      if (targetLoc.id === 'max_move') {
-        moved.type = 'COMPLETE';
-        moved.unitReady = true;
-        moved.tool = '2ME';
-        moved.toolReady = true;
-      }
-      if (targetLoc.group === 'PAX Pogos' && moved.type === 'COMPLETE') {
-        moved.unitReady = true;
-        moved.tool = '2ME';
-        moved.toolReady = true;
-      }
-      if (targetLoc.group === 'Complete Storage' && moved.tool === '2ME') {
-        moved.tool = 'none';
-        moved.toolReady = false;
-      }
+      const moved = normalizeForLocation({ ...editDraft }, targetId);
+
+      const doMove = () => {
+        pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
+        delete state.spots[editLocationId];
+        state.spots[targetId] = moved;
+        saveState();
+        haptic(20);
+        closeModal();
+        renderBoard();
+      };
+
+      const doAfterValidation = () => {
+        // Mating: PAX onto FD (or FD onto PAX) at S Pogo
+        if (occupant && targetLoc.group === 'S Pogos') {
+          tryMate(editLocationId, targetId, () => {
+            closeModal();
+            renderBoard();
+          });
+          return;
+        }
+        if (occupant) {
+          showConfirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`, doMove,
+            { okLabel: 'Replace', danger: true });
+          return;
+        }
+        doMove();
+      };
 
       // Strict-mode validation against target
       const v = validateUnit(moved, targetId);
       if (!v.ok) {
-        if (!confirm(`${v.reason}.\n\nMove anyway? (Turn off Strict mode to skip this warning.)`)) {
-          return;
-        }
+        showConfirm(`${v.reason}.\n\nMove anyway? (Turn off Strict mode to skip this warning.)`, doAfterValidation,
+          { okLabel: 'Move Anyway', danger: true });
+        return;
       }
-
-      // Mating: PAX onto FD (or FD onto PAX) at S Pogo
-      if (occupant && targetLoc.group === 'S Pogos') {
-        if (tryMate(editLocationId, targetId)) {
-          closeModal();
-          renderBoard();
-          return;
-        }
-        return; // user cancelled mating
-      }
-
-      // Confirm overwrite
-      if (occupant) {
-        if (!confirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`)) return;
-      }
-
-      // Remove from source, place at target
-      pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
-      delete state.spots[editLocationId];
-      state.spots[targetId] = moved;
-      saveState();
-      haptic(20);
-      closeModal();
-      renderBoard();
+      doAfterValidation();
     });
   });
 }
@@ -2192,45 +2244,52 @@ function onDragEnd() {
 
   // Mating: PAX onto FD (or FD onto PAX) at S Pogo
   if (targetLoc.group === 'S Pogos' && getSpot(currentTarget)) {
-    if (tryMate(locId, currentTarget)) {
+    tryMate(locId, currentTarget, () => {
       renderBoard();
       if (state.activeTab === 'map') renderMap();
-    }
+    });
     return;
   }
   const occupant = getSpot(currentTarget);
+  const moved = normalizeForLocation({ ...unit }, currentTarget);
+  const srcLoc = LOCATIONS.find(l => l.id === locId);
+  const dragAllowed = MOVE_RULES[srcLoc.group];
 
-  const moved = { ...unit };
-  if (targetLoc.id === 'max_move') {
-    moved.type = 'COMPLETE'; moved.unitReady = true; moved.tool = '2ME'; moved.toolReady = true;
-  }
-  if (targetLoc.group === 'PAX Pogos' && moved.type === 'COMPLETE') {
-    moved.unitReady = true; moved.tool = '2ME'; moved.toolReady = true;
-  }
-  if (targetLoc.group === 'Complete Storage' && moved.tool === '2ME') {
-    moved.tool = 'none'; moved.toolReady = false;
-  }
+  const doMove = () => {
+    pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
+    delete state.spots[locId];
+    state.spots[currentTarget] = moved;
+    saveState();
+    haptic(20);
+    renderBoard();
+    if (state.activeTab === 'map') renderMap();
+  };
+
+  const checkOccupant = () => {
+    if (occupant) {
+      showConfirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`, doMove,
+        { okLabel: 'Replace', danger: true });
+      return;
+    }
+    doMove();
+  };
+
+  const checkMoveRules = () => {
+    if (state.strict && dragAllowed && !dragAllowed.includes(targetLoc.group)) {
+      showConfirm(`${srcLoc.group} units don't normally go to ${targetLoc.group}.\n\nMove anyway? (Turn off Strict to skip this warning.)`, checkOccupant,
+        { okLabel: 'Move Anyway', danger: true });
+      return;
+    }
+    checkOccupant();
+  };
 
   const v = validateUnit(moved, currentTarget);
   if (!v.ok) {
-    if (!confirm(`${v.reason}.\n\nMove anyway?`)) return;
+    showConfirm(`${v.reason}.\n\nMove anyway?`, checkMoveRules,
+      { okLabel: 'Move Anyway', danger: true });
+    return;
   }
-  const srcLoc = LOCATIONS.find(l => l.id === locId);
-  const dragAllowed = MOVE_RULES[srcLoc.group];
-  if (state.strict && dragAllowed && !dragAllowed.includes(targetLoc.group)) {
-    if (!confirm(`${srcLoc.group} units don't normally go to ${targetLoc.group}.\n\nMove anyway? (Turn off Strict to skip this warning.)`)) return;
-  }
-  if (occupant) {
-    if (!confirm(`${targetLoc.label} is occupied by LU ${occupant.lu}.\n\nReplace it?`)) return;
-  }
-
-  pushUndo(`Move LU ${moved.lu} → ${targetLoc.label}`);
-  delete state.spots[locId];
-  state.spots[currentTarget] = moved;
-  saveState();
-  haptic(20);
-  renderBoard();
-  if (state.activeTab === 'map') renderMap();
+  checkMoveRules();
 }
 
 // ============================================
@@ -2248,12 +2307,18 @@ document.querySelectorAll('.tab').forEach(t => {
 
 document.getElementById('rulesToggle').addEventListener('click', () => {
   if (state.strict) {
-    if (!confirm('Turn OFF strict rules?\n\nYou\'ll be able to place anything anywhere with no validation.')) return;
+    showConfirm('Turn OFF strict rules?\n\nYou\'ll be able to place anything anywhere with no validation.', () => {
+      state.strict = false;
+      saveState();
+      refreshRulesToggle();
+      renderBoard();
+    }, { okLabel: 'Turn Off' });
+  } else {
+    state.strict = true;
+    saveState();
+    refreshRulesToggle();
+    renderBoard();
   }
-  state.strict = !state.strict;
-  saveState();
-  refreshRulesToggle();
-  renderBoard();
 });
 
 document.getElementById('quickBtn').addEventListener('click', () => {
