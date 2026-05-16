@@ -101,6 +101,11 @@ color: var(--bg);
 }
 /* Undo: bright when visible (only shown when there’s something to undo) */
 .undo-btn { border-color: var(--warn); color: var(--warn); }
+.update-btn.ready {
+background: rgba(74,222,128,0.14);
+border-color: var(--good);
+color: var(--good);
+}
 
 /* TABS */
 .tabs {
@@ -166,6 +171,53 @@ line-height: 1.1;
 .counter.complete .counter-value { color: var(--complete); }
 .counter.ready .counter-value { color: var(--good); }
 .counter.tool .counter-value { color: var(--warn); }
+
+/* BOARD PRODUCTIVITY TOOLS */
+.board-tools {
+display: grid;
+grid-template-columns: 1fr 110px 110px;
+gap: 6px;
+margin-bottom: 10px;
+}
+.board-tools .input,
+.board-tools .select {
+padding: 10px 12px;
+font-size: 14px;
+}
+.board-tools-actions {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 6px;
+margin-bottom: 12px;
+}
+.small-btn {
+background: var(--panel-2);
+border: 1.5px solid var(--border-bright);
+border-radius: 8px;
+color: var(--text);
+padding: 10px 8px;
+font-size: 11px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+cursor: pointer;
+font-family: inherit;
+}
+.small-btn.active {
+border-color: var(--accent);
+color: var(--accent);
+background: rgba(0,217,255,0.08);
+}
+.small-btn:active { background: var(--border); }
+.board-filter-empty {
+text-align: center;
+color: var(--text-faint);
+font-size: 13px;
+padding: 22px 10px;
+border: 1px dashed var(--border);
+border-radius: 9px;
+margin-bottom: 10px;
+}
 
 /* GROUPS */
 .group { margin-bottom: 14px; }
@@ -625,6 +677,10 @@ width: 100%;
 }
 .picker-item:active { background: var(--panel-2); }
 .picker-item.disabled { opacity: 0.4; pointer-events: none; }
+.layout-textarea {
+min-height: 38vh;
+resize: vertical;
+}
 .picker-lu {
 font-family: ‘SF Mono’, Menlo, Consolas, monospace;
 font-weight: 700;
@@ -913,6 +969,9 @@ opacity: 1;
     <button class="hdr-btn rules-btn" id="rulesToggle" title="Strict / Loose rules">
       <span class="hdr-icon" id="rulesLabel">S</span>
     </button>
+    <button class="hdr-btn" id="layoutBtn" title="Configure layout">
+      <span class="hdr-icon">⌗</span>
+    </button>
     <button class="hdr-btn update-btn" id="updateBtn" title="Check for updates &amp; reload">
       <span class="hdr-icon">↻</span>
     </button>
@@ -941,7 +1000,7 @@ opacity: 1;
 // ============================================
 // CONFIG
 // ============================================
-const LOCATIONS = [
+const DEFAULT_LOCATIONS = [
   // S Pogos
   { id: 'safran_1', label: 'S 1', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
   { id: 'safran_2', label: 'S 2', group: 'S Pogos', accepts: ['COMPLETE', 'FD'] },
@@ -963,8 +1022,12 @@ const LOCATIONS = [
   { id: 'pax_pogo_2', label: 'PAX Pogo 2', group: 'PAX Pogos', accepts: ['PAX', 'COMPLETE'] },
 ];
 
-const GROUP_ORDER = ['S Pogos', 'Max Move', 'FD Spots', 'PAX Pogos', 'Complete Storage'];
-const DESTINATIONS = ['None', 'S Pogos', 'PAX Pogos', 'FD Spots', 'Max Move', 'Complete Storage', 'LOAD'];
+const DEFAULT_GROUP_ORDER = ['S Pogos', 'Max Move', 'FD Spots', 'PAX Pogos', 'Complete Storage'];
+const DEFAULT_DESTINATIONS = ['None', ...DEFAULT_GROUP_ORDER, 'LOAD'];
+
+let LOCATIONS = DEFAULT_LOCATIONS.map(loc => ({ ...loc, accepts: [...loc.accepts] }));
+let GROUP_ORDER = [...DEFAULT_GROUP_ORDER];
+let DESTINATIONS = [...DEFAULT_DESTINATIONS];
 
 // Movement rules (strict mode): which groups a unit can be moved TO from a given source group.
 // null = unrestricted. Toggle off strict mode to override.
@@ -980,6 +1043,7 @@ const MOVE_RULES = {
 // STATE
 // ============================================
 const STORAGE_KEY = 'floor_tracker_v1';
+const LAYOUT_STORAGE_KEY = 'floor_tracker_layout_v1';
 
 let state = {
   spots: {}, // { locationId: { lu, type, tool, toolReady, unitReady, destination } }
@@ -987,7 +1051,122 @@ let state = {
   strict: true,
   quickView: false,
   activeTab: 'board',
+  boardFilters: {
+    query: '',
+    type: 'ALL',
+    readyOnly: false,
+    destination: 'ALL',
+    showEmpty: true,
+  },
 };
+
+function refreshDestinations() {
+  DESTINATIONS = ['None', ...GROUP_ORDER.filter(Boolean), 'LOAD'];
+}
+
+function validateLayoutConfig(layout) {
+  if (!layout || !Array.isArray(layout.locations) || layout.locations.length === 0) {
+    return { ok: false, reason: 'Layout must include a non-empty locations array.' };
+  }
+  const allowedTypes = new Set(['FD', 'PAX', 'COMPLETE']);
+  const ids = new Set();
+  for (const loc of layout.locations) {
+    if (!loc || typeof loc.id !== 'string' || !loc.id.trim()) {
+      return { ok: false, reason: 'Each location must have a non-empty id.' };
+    }
+    if (ids.has(loc.id.trim())) {
+      return { ok: false, reason: `Duplicate location id: ${loc.id}` };
+    }
+    ids.add(loc.id.trim());
+    if (typeof loc.label !== 'string' || !loc.label.trim()) {
+      return { ok: false, reason: `Location ${loc.id} needs a label.` };
+    }
+    if (typeof loc.group !== 'string' || !loc.group.trim()) {
+      return { ok: false, reason: `Location ${loc.id} needs a group.` };
+    }
+    if (!Array.isArray(loc.accepts) || loc.accepts.length === 0) {
+      return { ok: false, reason: `Location ${loc.id} must accept at least one type.` };
+    }
+    for (const t of loc.accepts) {
+      if (!allowedTypes.has(t)) {
+        return { ok: false, reason: `Location ${loc.id} has invalid type "${t}" in accepts.` };
+      }
+    }
+  }
+  if (layout.groupOrder && !Array.isArray(layout.groupOrder)) {
+    return { ok: false, reason: 'groupOrder must be an array when provided.' };
+  }
+  return { ok: true };
+}
+
+function normalizeLayoutConfig(layout) {
+  const locations = layout.locations.map(loc => ({
+    id: String(loc.id).trim(),
+    label: String(loc.label).trim(),
+    group: String(loc.group).trim(),
+    accepts: [...new Set(loc.accepts.map(t => String(t).trim()))],
+  }));
+  const discoveredGroups = [...new Set(locations.map(l => l.group))];
+  const provided = Array.isArray(layout.groupOrder) ? layout.groupOrder.map(g => String(g).trim()).filter(Boolean) : [];
+  const groupOrder = [...provided.filter(g => discoveredGroups.includes(g)), ...discoveredGroups.filter(g => !provided.includes(g))];
+  return { locations, groupOrder };
+}
+
+function normalizeSpotsForCurrentLayout() {
+  const validIds = new Set(LOCATIONS.map(l => l.id));
+  let changed = false;
+  for (const locId of Object.keys(state.spots)) {
+    if (!validIds.has(locId)) {
+      delete state.spots[locId];
+      changed = true;
+      continue;
+    }
+    const unit = state.spots[locId];
+    const normalizedUnit = normalizeForLocation(unit, locId);
+    if (JSON.stringify(unit) !== JSON.stringify(normalizedUnit)) {
+      state.spots[locId] = normalizedUnit;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function applyLayoutConfig(layout, opts = {}) {
+  const { persist = true, syncState = true } = opts;
+  const normalized = normalizeLayoutConfig(layout);
+  LOCATIONS = normalized.locations;
+  GROUP_ORDER = normalized.groupOrder;
+  refreshDestinations();
+  normalizeSpotsForCurrentLayout();
+
+  if (persist) {
+    localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify({
+      locations: LOCATIONS,
+      groupOrder: GROUP_ORDER,
+    }));
+  }
+  if (syncState) saveState();
+}
+
+function loadLayoutConfig() {
+  try {
+    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (!raw) {
+      refreshDestinations();
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    const valid = validateLayoutConfig(parsed);
+    if (!valid.ok) {
+      refreshDestinations();
+      return;
+    }
+    applyLayoutConfig(parsed, { persist: false, syncState: false });
+  } catch (e) {
+    console.error('Layout load failed:', e);
+    refreshDestinations();
+  }
+}
 
 function loadState() {
   try {
@@ -995,6 +1174,10 @@ function loadState() {
     if (raw) {
       const parsed = JSON.parse(raw);
       state = { ...state, ...parsed };
+      state.boardFilters = {
+        ...state.boardFilters,
+        ...(parsed.boardFilters || {}),
+      };
       // Migrate old field name: bolted -> toolReady
       // (Old saves from earlier versions used `bolted` for 2ME-bolted-down status)
       for (const locId in state.spots) {
@@ -1021,6 +1204,8 @@ function saveState() {
       loadOrder: state.loadOrder,
       strict: state.strict,
       quickView: state.quickView,
+      activeTab: state.activeTab,
+      boardFilters: state.boardFilters,
     }));
   } catch (e) {
     console.error('Save failed:', e);
@@ -1140,6 +1325,34 @@ function renderCounters() {
   `;
 }
 
+function isUnitReadyForFilter(unit, loc) {
+  if (unit.type !== 'COMPLETE') return false;
+  const autoReady = loc && (loc.id === 'max_move' || loc.group === 'PAX Pogos');
+  return autoReady || !!unit.unitReady;
+}
+
+function matchesBoardFilter(loc, unit) {
+  const f = state.boardFilters || {};
+  const q = (f.query || '').trim().toLowerCase();
+
+  if (!unit) {
+    if (!f.showEmpty) return false;
+    if (!q) return true;
+    const emptyHaystack = `${loc.label} ${loc.group}`.toLowerCase();
+    return emptyHaystack.includes(q);
+  }
+
+  if (f.type && f.type !== 'ALL' && unit.type !== f.type) return false;
+  if (f.readyOnly && !isUnitReadyForFilter(unit, loc)) return false;
+  if (f.destination && f.destination !== 'ALL' && (unit.destination || 'None') !== f.destination) return false;
+
+  if (q) {
+    const haystack = `${unit.lu} ${loc.label} ${loc.group} ${unit.type} ${unit.destination || ''}`.toLowerCase();
+    if (!haystack.includes(q)) return false;
+  }
+  return true;
+}
+
 function renderBoard() {
   renderCounters();
   const root = document.getElementById('boardView');
@@ -1149,14 +1362,32 @@ function renderBoard() {
     byGroup[loc.group].push(loc);
   }
 
-  let html = '';
+  let html = `
+    <div class="board-tools">
+      <input class="input" id="boardSearch" placeholder="Find LU / location..." value="${escapeHtml(state.boardFilters.query || '')}">
+      <select class="select" id="boardTypeFilter">
+        ${['ALL', 'FD', 'PAX', 'COMPLETE'].map(t => `<option value="${escapeHtml(t)}" ${state.boardFilters.type === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
+      </select>
+      <select class="select" id="boardDestFilter">
+        ${['ALL', ...DESTINATIONS].map(d => `<option value="${escapeHtml(d)}" ${state.boardFilters.destination === d ? 'selected' : ''}>${escapeHtml(d)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="board-tools-actions">
+      <button class="small-btn ${state.boardFilters.readyOnly ? 'active' : ''}" id="boardReadyFilter">Ready Only</button>
+      <button class="small-btn ${state.boardFilters.showEmpty ? 'active' : ''}" id="boardEmptyToggle">Show Empty</button>
+    </div>
+  `;
+  let visibleSpots = 0;
   for (const group of GROUP_ORDER) {
-    const locs = byGroup[group] || [];
+    const allLocs = byGroup[group] || [];
+    const locs = allLocs.filter(l => matchesBoardFilter(l, getSpot(l.id)));
+    if (!locs.length) continue;
+    visibleSpots += locs.length;
     const filled = locs.filter(l => getSpot(l.id)).length;
     html += `
       <section class="group">
         <div class="group-header">
-          <span class="group-title">${group}</span>
+          <span class="group-title">${escapeHtml(group)}</span>
           <span class="group-count">${filled}/${locs.length}</span>
         </div>
         <div class="spots${locs.length === 1 ? ' solo' : ''}">
@@ -1165,7 +1396,37 @@ function renderBoard() {
       </section>
     `;
   }
+  if (visibleSpots === 0) {
+    html += '<div class="board-filter-empty">No spots match current filters.</div>';
+  }
+
   root.innerHTML = html;
+
+  document.getElementById('boardSearch')?.addEventListener('input', e => {
+    state.boardFilters.query = e.target.value;
+    saveState();
+    renderBoard();
+  });
+  document.getElementById('boardTypeFilter')?.addEventListener('change', e => {
+    state.boardFilters.type = e.target.value;
+    saveState();
+    renderBoard();
+  });
+  document.getElementById('boardDestFilter')?.addEventListener('change', e => {
+    state.boardFilters.destination = e.target.value;
+    saveState();
+    renderBoard();
+  });
+  document.getElementById('boardReadyFilter')?.addEventListener('click', () => {
+    state.boardFilters.readyOnly = !state.boardFilters.readyOnly;
+    saveState();
+    renderBoard();
+  });
+  document.getElementById('boardEmptyToggle')?.addEventListener('click', () => {
+    state.boardFilters.showEmpty = !state.boardFilters.showEmpty;
+    saveState();
+    renderBoard();
+  });
 
   root.querySelectorAll('.spot').forEach(el => {
     el.addEventListener('click', e => {
@@ -1392,69 +1653,51 @@ function renderLoad() {
 function renderMap() {
   const root = document.getElementById('mapView');
 
-  function mapSpotHtml(locId, extraClass) {
-    const loc = LOCATIONS.find(l => l.id === locId);
-    const unit = getSpot(locId);
-    const isOverflow = locId.startsWith('fd_overflow_');
-    const cls = [
-      isOverflow ? 'overflow' : '',
-      extraClass || '',
-    ].filter(Boolean).join(' ');
+  const byGroup = {};
+  for (const loc of LOCATIONS) {
+    if (!byGroup[loc.group]) byGroup[loc.group] = [];
+    byGroup[loc.group].push(loc);
+  }
 
+  const mapSpotHtml = (loc) => {
+    const unit = getSpot(loc.id);
+    const isOverflow = loc.id.startsWith('fd_overflow_');
+    const cls = isOverflow ? ' overflow' : '';
     if (!unit) {
       return `
-        <button class="map-spot empty${cls ? ' ' + cls : ''}" data-location="${locId}">
+        <button class="map-spot empty${cls}" data-location="${loc.id}">
           <div class="map-spot-name">${escapeHtml(loc.label)}</div>
         </button>
       `;
     }
     const typeClass = unit.type.toLowerCase();
     return `
-      <button class="map-spot filled ${typeClass}${cls ? ' ' + cls : ''}" data-location="${locId}">
+      <button class="map-spot filled ${typeClass}${cls}" data-location="${loc.id}">
         <div class="map-spot-name">${escapeHtml(loc.label)}</div>
         <div class="map-spot-lu">${escapeHtml(unit.lu)}</div>
         <div class="map-spot-type">${unit.type}</div>
       </button>
     `;
-  }
+  };
 
-  root.innerHTML = `
-    <div class="floor-building">
-      <div class="floor-top">
-        <div class="floor-top-empty"></div>
-        <div class="floor-storage-col">
-          ${mapSpotHtml('storage_1')}
-          ${mapSpotHtml('storage_2')}
+  let html = '<div class="floor-building">';
+  for (const group of GROUP_ORDER) {
+    const locs = byGroup[group] || [];
+    if (!locs.length) continue;
+    html += `
+      <section class="group" style="margin:10px">
+        <div class="group-header">
+          <span class="group-title">${escapeHtml(group)}</span>
+          <span class="group-count">${locs.filter(l => getSpot(l.id)).length}/${locs.length}</span>
         </div>
-      </div>
-      <div class="floor-wall-bar"><span class="floor-wall-label">Wall</span></div>
-      <div class="floor-main">
-        <div class="floor-left-col">
-          ${mapSpotHtml('pax_pogo_1')}
-          ${mapSpotHtml('safran_1')}
-          ${mapSpotHtml('safran_2')}
-          ${mapSpotHtml('safran_3')}
-          ${mapSpotHtml('safran_4')}
+        <div class="move-spot-list">
+          ${locs.map(mapSpotHtml).join('')}
         </div>
-        <div class="floor-right-col">
-          ${mapSpotHtml('pax_pogo_2', 'tall')}
-          ${mapSpotHtml('fd_1')}
-          ${mapSpotHtml('fd_2')}
-          ${mapSpotHtml('fd_3')}
-          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) || getSpot('fd_overflow_1') ? mapSpotHtml('fd_overflow_1') : ''}
-          ${(getSpot('fd_1') && getSpot('fd_2') && getSpot('fd_3')) || getSpot('fd_overflow_2') ? mapSpotHtml('fd_overflow_2') : ''}
-        </div>
-      </div>
-      <div class="floor-bottom-row">
-        <div class="floor-bottom-inner">
-          <div class="floor-half"></div>
-          <div class="floor-half">
-            ${mapSpotHtml('max_move', 'tall')}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+      </section>
+    `;
+  }
+  html += '</div>';
+  root.innerHTML = html;
 
   root.querySelectorAll('.map-spot').forEach(el => {
     el.addEventListener('click', () => {
@@ -1633,7 +1876,7 @@ function renderSpotModal() {
       <div class="field-label">Next Destination</div>
       <select class="select" id="destSelect">
         ${DESTINATIONS.map(dst => `
-          <option value="${dst}" ${d.destination === dst ? 'selected' : ''}>${dst}</option>
+          <option value="${escapeHtml(dst)}" ${d.destination === dst ? 'selected' : ''}>${escapeHtml(dst)}</option>
         `).join('')}
       </select>
     </div>
@@ -1866,6 +2109,64 @@ function openCustomLoadModal() {
 }
 
 // ============================================
+// LAYOUT CONFIG MODAL
+// ============================================
+function openLayoutModal() {
+  const payload = {
+    locations: LOCATIONS,
+    groupOrder: GROUP_ORDER,
+  };
+  const content = `
+    <div class="modal-title">Layout Configuration</div>
+    <div class="modal-heading">Locations + Group Order</div>
+    <div class="move-hint">Edit JSON to configure layout. Keep location <span class="mono">id</span> stable for spots you want to preserve. Applying removes units in deleted locations.</div>
+    <div class="field">
+      <div class="field-label">Layout JSON</div>
+      <textarea class="input layout-textarea mono" id="layoutJson">${escapeHtml(JSON.stringify(payload, null, 2))}</textarea>
+    </div>
+    <div class="modal-actions three">
+      <button class="btn ghost" id="layoutCancel">Cancel</button>
+      <button class="btn danger" id="layoutReset">Reset Default</button>
+      <button class="btn primary" id="layoutApply">Apply</button>
+    </div>
+  `;
+
+  openModal(content);
+  document.getElementById('layoutCancel').addEventListener('click', closeModal);
+  document.getElementById('layoutApply').addEventListener('click', () => {
+    try {
+      const parsed = JSON.parse(document.getElementById('layoutJson').value);
+      const valid = validateLayoutConfig(parsed);
+      if (!valid.ok) {
+        alert(valid.reason);
+        return;
+      }
+      applyLayoutConfig(parsed);
+      closeModal();
+      if (state.activeTab === 'map') renderMap();
+      else if (state.activeTab === 'load') renderLoad();
+      else renderBoard();
+    } catch (e) {
+        const msg = String(e?.message || '').split('\n')[0].slice(0, 120);
+        alert(msg ? `Invalid JSON: ${msg}` : 'Invalid JSON.');
+    }
+  });
+  document.getElementById('layoutReset').addEventListener('click', () => {
+    showConfirm('Reset layout to defaults?', () => {
+      localStorage.removeItem(LAYOUT_STORAGE_KEY);
+      applyLayoutConfig({
+        locations: DEFAULT_LOCATIONS,
+        groupOrder: DEFAULT_GROUP_ORDER,
+      }, { persist: false });
+      closeModal();
+      if (state.activeTab === 'map') renderMap();
+      else if (state.activeTab === 'load') renderLoad();
+      else renderBoard();
+    }, { okLabel: 'Reset', danger: true });
+  });
+}
+
+// ============================================
 // MATING — FD + PAX at S Pogo = COMPLETE
 // ============================================
 function tryMate(sourceId, targetId, onSuccess) {
@@ -1958,7 +2259,7 @@ function openMoveModal(groupFilter) {
     const locs = byGroup[group];
     if (!locs || locs.length === 0) continue;
     groupHtml += `
-      <div class="move-group-title">${group}</div>
+      <div class="move-group-title">${escapeHtml(group)}</div>
       <div class="move-spot-list">
         ${locs.map(l => {
           const occupant = occupiedMap[l.id];
@@ -2055,6 +2356,7 @@ function openMoveModal(groupFilter) {
 // ============================================
 function setTab(tab) {
   state.activeTab = tab;
+  saveState();
   document.querySelectorAll('.tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tab);
   });
@@ -2295,11 +2597,55 @@ function onDragEnd() {
 // ============================================
 // INIT
 // ============================================
+loadLayoutConfig();
 loadState();
-renderBoard();
+if (normalizeSpotsForCurrentLayout()) saveState();
 refreshRulesToggle();
 refreshQuickViewToggle();
 refreshUndoButton();
+setTab(state.activeTab || 'board');
+
+let waitingServiceWorker = null;
+
+function refreshUpdateButton() {
+  const btn = document.getElementById('updateBtn');
+  btn.classList.toggle('ready', !!waitingServiceWorker);
+  btn.title = waitingServiceWorker ? 'Update ready — tap to apply' : 'Check for updates & reload';
+  btn.querySelector('.hdr-icon').textContent = waitingServiceWorker ? '⬆' : '↻';
+  btn.disabled = false;
+}
+
+function wireServiceWorkerUpdates() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then(reg => {
+    const captureWaiting = () => {
+      if (reg.waiting) {
+        waitingServiceWorker = reg.waiting;
+        refreshUpdateButton();
+      }
+    };
+    captureWaiting();
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          waitingServiceWorker = newWorker;
+          refreshUpdateButton();
+        }
+      });
+    });
+    const updateIntervalId = setInterval(() => {
+      if (document.hidden) return;
+      reg.update().catch(err => console.warn('Update check failed:', err));
+    }, 60000);
+    window.addEventListener('beforeunload', () => clearInterval(updateIntervalId), { once: true });
+  }).catch(() => {});
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    location.reload();
+  });
+}
 
 document.querySelectorAll('.tab').forEach(t => {
   t.addEventListener('click', () => setTab(t.dataset.tab));
@@ -2329,11 +2675,16 @@ document.getElementById('quickBtn').addEventListener('click', () => {
 });
 
 document.getElementById('undoBtn').addEventListener('click', performUndo);
+document.getElementById('layoutBtn').addEventListener('click', openLayoutModal);
 
 document.getElementById('updateBtn').addEventListener('click', () => {
   const btn = document.getElementById('updateBtn');
   btn.disabled = true;
   btn.querySelector('.hdr-icon').textContent = '…';
+  if (waitingServiceWorker) {
+    waitingServiceWorker.postMessage({ type: 'SKIP_WAITING' });
+    return;
+  }
   const reload = () => location.reload();
   const clearCaches = () => 'caches' in window
     ? caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {})
@@ -2343,6 +2694,9 @@ document.getElementById('updateBtn').addEventListener('click', () => {
     : Promise.resolve();
   unregisterSW().then(clearCaches).then(reload).catch(reload);
 });
+
+refreshUpdateButton();
+wireServiceWorkerUpdates();
 
 function takeSnapshot() {
   const PAD = 20, COL_W = 560, ROW_H = 26, GROUP_GAP = 14;
@@ -2428,9 +2782,6 @@ document.addEventListener('touchend', e => {
   lastTouch = now;
 }, { passive: false });
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
-}
 </script>
 
 </body>
