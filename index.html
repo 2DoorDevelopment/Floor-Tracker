@@ -73,7 +73,7 @@ font-size: 14px; font-weight: 700;
 letter-spacing: 0.12em;
 text-transform: uppercase;
 color: var(--accent);
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 .header-controls {
 display: flex;
@@ -102,7 +102,7 @@ box-shadow: 0 4px 10px rgba(0,0,0,0.26);
 font-size: 16px;
 font-weight: 700;
 line-height: 1;
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 /* Rules toggle: cyan when Strict, amber when Loose */
 .rules-btn { border-color: var(--accent); color: var(--accent); }
@@ -113,7 +113,7 @@ background: var(--accent-dim);
 border-color: var(--accent);
 color: var(--bg);
 }
-/* Undo: bright when visible (only shown when there’s something to undo) */
+/* Undo: bright when visible (only shown when there's something to undo) */
 .undo-btn { border-color: var(--warn); color: var(--warn); }
 .update-btn.ready {
 background: rgba(74,222,128,0.14);
@@ -261,7 +261,7 @@ color: var(--text-dim);
 .group-count {
 font-size: 10px;
 color: var(--text-faint);
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 .spots {
 display: grid;
@@ -332,7 +332,7 @@ opacity: 0.9;
 }
 .spot-lu {
 font-size: 19px; font-weight: 700;
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 color: var(--text);
 letter-spacing: -0.02em;
 line-height: 1.05;
@@ -466,7 +466,7 @@ display: flex; align-items: center; gap: 8px;
 box-shadow: var(--shadow-sm);
 }
 .load-num {
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 font-size: 11px; font-weight: 700;
 color: var(--accent);
 min-width: 18px;
@@ -479,7 +479,7 @@ gap: 2px;
 min-width: 0;
 }
 .load-lu {
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 font-size: 16px; font-weight: 700;
 color: var(--text);
 line-height: 1.1;
@@ -619,7 +619,7 @@ font-weight: 700;
 margin-bottom: 4px;
 }
 .modal-heading {
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 font-size: 22px;
 font-weight: 700;
 color: var(--text);
@@ -640,7 +640,7 @@ border-radius: 8px;
 color: var(--text);
 padding: 12px 14px;
 font-size: 16px;
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 -webkit-appearance: none;
 appearance: none;
 }
@@ -651,7 +651,7 @@ border-color: var(--accent);
 box-shadow: 0 0 0 3px rgba(33, 221, 255, 0.14);
 }
 .select {
-background-image: url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘12’ viewBox=‘0 0 12 12’%3E%3Cpath fill=’%23e8eef7’ d=‘M6 8.5L1.5 4h9z’/%3E%3C/svg%3E”);
+background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e8eef7' d='M6 8.5L1.5 4h9z'/%3E%3C/svg%3E");
 background-repeat: no-repeat;
 background-position: right 14px center;
 padding-right: 36px;
@@ -741,7 +741,7 @@ min-height: 38vh;
 resize: vertical;
 }
 .picker-lu {
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 font-weight: 700;
 font-size: 16px;
 color: var(--text);
@@ -821,7 +821,7 @@ color: var(--text);
 font-size: 11px;
 color: var(--text);
 opacity: 0.75;
-font-family: ‘SF Mono’, Menlo, Consolas, monospace;
+font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 .move-spot-btn.occupied .move-spot-status {
 color: var(--warn);
@@ -1019,6 +1019,16 @@ opacity: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* iPhone 16 Pro Max portrait polish */
+@media (min-width: 428px) and (max-width: 440px) {
+  main { padding: 14px 12px 20px; max-width: 760px; }
+  .board-tools { grid-template-columns: 1fr 120px 120px; gap: 8px; }
+  .spots { gap: 8px; }
+  .spot { min-height: 66px; padding: 9px 11px; }
+  .spot-lu { font-size: 21px; }
+  .hdr-btn, .icon-btn { width: 38px; height: 38px; }
 }
 </style>
 
