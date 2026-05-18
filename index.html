@@ -1867,7 +1867,7 @@ function renderSpotModal() {
 
   const dupSpot = findLuConflict(d.lu, d.type, editLocationId);
   const dupWarning = dupSpot
-    ? `LU ${d.lu} conflicts with ${LOCATIONS.find(l => l.id === dupSpot[0])?.label} (${dupSpot[1]?.type}). Only FD + PAX can share an LU.`
+    ? `LU ${d.lu} is already used at ${LOCATIONS.find(l => l.id === dupSpot[0])?.label} (${dupSpot[1]?.type}). Only one FD and one PAX can share the same LU.`
     : null;
 
   const destConflict = (() => {
@@ -2100,7 +2100,7 @@ function renderSpotModal() {
     };
     if (dup) {
       const dupLoc = LOCATIONS.find(l => l.id === dup[0]);
-      alert(`LU ${editDraft.lu} conflicts with ${dupLoc?.label} (${dup[1]?.type}). Only FD + PAX can share an LU.`);
+      alert(`LU ${editDraft.lu} is already used at ${dupLoc?.label} (${dup[1]?.type}). Only one FD and one PAX can share the same LU.`);
       return;
     }
     checkValidation();
