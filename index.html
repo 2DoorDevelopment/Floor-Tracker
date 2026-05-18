@@ -1311,6 +1311,20 @@ function getAllUnits() {
   }));
 }
 
+function isAllowedSharedLu(typeA, typeB) {
+  return (typeA === 'FD' && typeB === 'PAX') || (typeA === 'PAX' && typeB === 'FD');
+}
+
+function findLuConflict(lu, type, currentLocationId) {
+  const normalized = String(lu || '').trim();
+  if (!normalized) return null;
+  return Object.entries(state.spots).find(([id, s]) => {
+    if (id === currentLocationId) return false;
+    if (String(s.lu || '').trim() !== normalized) return false;
+    return !isAllowedSharedLu(type, s.type);
+  }) || null;
+}
+
 function validateUnit(unit, locationId) {
   if (!state.strict) return { ok: true };
   const loc = LOCATIONS.find(l => l.id === locationId);
@@ -1851,11 +1865,9 @@ function renderSpotModal() {
     ? validateUnit(d, editLocationId)
     : { ok: true };
 
-  const dupSpot = d.lu.trim()
-    ? Object.entries(state.spots).find(([id, s]) => s.lu === d.lu.trim() && id !== editLocationId)
-    : null;
+  const dupSpot = findLuConflict(d.lu, d.type, editLocationId);
   const dupWarning = dupSpot
-    ? `LU ${d.lu} is already at ${LOCATIONS.find(l => l.id === dupSpot[0])?.label}`
+    ? `LU ${d.lu} conflicts with ${LOCATIONS.find(l => l.id === dupSpot[0])?.label} (${dupSpot[1]?.type}). Only FD + PAX can share an LU.`
     : null;
 
   const destConflict = (() => {
@@ -2067,7 +2079,7 @@ function renderSpotModal() {
     }
     // Apply location rules before saving
     editDraft = normalizeForLocation({ ...editDraft }, editLocationId);
-    const dup = Object.entries(state.spots).find(([id, s]) => s.lu === editDraft.lu && id !== editLocationId);
+    const dup = findLuConflict(editDraft.lu, editDraft.type, editLocationId);
     const v = validateUnit(editDraft, editLocationId);
 
     const doSave = () => {
@@ -2088,8 +2100,7 @@ function renderSpotModal() {
     };
     if (dup) {
       const dupLoc = LOCATIONS.find(l => l.id === dup[0]);
-      showConfirm(`LU ${editDraft.lu} is already at ${dupLoc?.label}.\n\nSave anyway?`, checkValidation,
-        { okLabel: 'Save Anyway' });
+      alert(`LU ${editDraft.lu} conflicts with ${dupLoc?.label} (${dup[1]?.type}). Only FD + PAX can share an LU.`);
       return;
     }
     checkValidation();
